@@ -1,0 +1,68 @@
+:root {
+  --bg: #f6f4ff;
+  --surface: #ffffff;
+  --text: #1d1838;
+  --muted: #615c84;
+  --border: rgba(40, 30, 90, 0.12);
+  --accent: #7c5cff;
+  --ok: #138a52;
+  --warn: #a15c00;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #110e22;
+    --surface: #1c1832;
+    --text: #f1efff;
+    --muted: #a7a2c9;
+    --border: rgba(255, 255, 255, 0.1);
+    --accent: #9d86ff;
+    --ok: #4fd18f;
+    --warn: #ffb44d;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+}
+main { max-width: 720px; margin: 0 auto; padding: 56px 16px 320px; }
+.eyebrow { color: var(--accent); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; margin: 0; }
+h1 { font-size: clamp(36px, 7vw, 56px); line-height: 1.05; margin: 8px 0 16px; }
+h2 { font-size: 20px; margin: 0 0 8px; }
+.lead { font-size: 18px; color: var(--muted); margin: 0 0 24px; }
+section { margin-top: 36px; }
+.hint { color: var(--muted); margin: 0 0 12px; font-size: 14px; }
+ul { padding-left: 20px; margin: 0; }
+li { margin: 6px 0; }
+.status {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+}
+.status.ok { color: var(--ok); }
+.status.warn { color: var(--warn); }
+.status code { font-size: 13px; }
+.skins { display: flex; flex-wrap: wrap; gap: 8px; }
+.skins button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.skins button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.swatch { width: 14px; height: 14px; border-radius: 50%; }
