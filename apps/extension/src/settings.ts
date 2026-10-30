@@ -7,6 +7,8 @@ export interface Settings {
   skinId: string;
   /** Lets Tekkie read, click, type and scroll on the page you're looking at. */
   browserControl: boolean;
+  /** Lets Tekkie take a screenshot of the current tab when you ask what is on screen. */
+  screenReading: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -14,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   serverUrl: "http://localhost:8787",
   skinId: DEFAULT_SKIN.id,
   browserControl: true,
+  screenReading: true,
 };
 
 export async function loadSettings(): Promise<Settings> {

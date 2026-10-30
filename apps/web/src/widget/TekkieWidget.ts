@@ -233,6 +233,7 @@ export function mountTekkie(options: TekkieOptions) {
     lookAtPoint,
     setSkin: (skin: Skin) => character.setSkin(skin),
     wave: () => character.wave(),
+    setPosition: (p: { x: number; b: number }) => place(p.x, p.b),
     /** Brings Tekkie back to the default corner. */
     resetPosition() {
       options.storage?.clear();

@@ -57,6 +57,10 @@ const watchdog = setInterval(() => {
 
 chrome.runtime.onMessage.addListener((msg: { type?: string; name?: string; args?: Record<string, unknown> }, sender, sendResponse) => {
   if (!alive() || sender.id !== chrome.runtime.id) return;
+  if (msg?.type === "tekkie:ping") {
+    sendResponse(true);
+    return;
+  }
   if (msg?.type === "tekkie:show") {
     // Bring Tekkie to the default corner of this page, even if it was hidden or dragged away.
     void (async () => {
@@ -85,4 +89,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
     else void mount();
   }
   if (changes.skinId) tekkie?.setSkin(skinById(String(changes.skinId.newValue)));
+  // Dragged in another tab? Move Tekkie here too, so it is in the same spot wherever you look.
+  if (changes.position) {
+    const next = changes.position.newValue as { x?: unknown; b?: unknown } | undefined;
+    if (finite(next?.x) && finite(next?.b)) tekkie?.setPosition({ x: next.x, b: next.b });
+  }
 });

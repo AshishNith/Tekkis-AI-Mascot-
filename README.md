@@ -44,9 +44,9 @@ npm run build:extension
 
 **Browser control:** ask Tekkie to "search for sneakers", "click the second result", "scroll down" or "go back". It can read the page, click, type, scroll and open links or tabs, and shows a purple ring around whatever it touches. It never types into password or payment fields and asks you before risky buttons (buy, pay, send, delete). Clicks, typing, hover and key presses are sent as real browser input (through Chrome's debugger), so they work on sites that ignore scripted events; Chrome shows its "started debugging this browser" bar while Tekkie is acting, and it lets go when the chat ends. Tekkie can also list, switch and close tabs, reload, and go back/forward. Turn it off in the toolbar popup.
 
-**Screen reading:** tap "Let Tekkie see the screen" in the toolbar popup (Chrome asks for site access once), then ask "what's on my screen?". Tekkie takes a screenshot of your current tab only when you ask, and sends it to Gemini. Tap the button again to switch it off.
+**Screen reading:** ask "what's on my screen?" and Tekkie takes a screenshot of your current tab and sends it to Gemini. Only when you ask. Switch it off under Settings in the popup.
 
-Tekkie draws itself straight into the page (in a shadow root), while the voice engine, microphone and speaker run in the extension's background page, so strict site security rules can't block it and the chat survives page changes. Click the toolbar icon for the control panel: **Show Tekkie on this page**, **Talk**, and a text box.
+Tekkie draws itself straight into the page (in a shadow root), while the voice engine, microphone and speaker run in the extension's background page, so strict site security rules can't block it and the chat survives page changes. Tekkie follows you from tab to tab (it is added to the tab you switch to, and its position stays in sync). Click the toolbar icon for the control panel: **Show Tekkie on this page**, **Talk**, and a text box.
 
 ### Production build
 

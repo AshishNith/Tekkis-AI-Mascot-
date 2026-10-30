@@ -3,10 +3,44 @@ import { loadSettings } from "./settings";
 const MIC_SETUP = "permission.html";
 const OFFSCREEN = "offscreen.html";
 
-// First install: grant the microphone once up front, so the first chat on any site just works.
-chrome.runtime.onInstalled.addListener(({ reason }) => {
-  if (reason === "install") void chrome.tabs.create({ url: chrome.runtime.getURL(MIC_SETUP) });
+// --- Tekkie follows you: make sure the tab you are looking at has a mascot. ----------------------
+
+/** Puts the content script into a tab that doesn't have a live copy (opened before install, or orphaned by a reload). */
+async function ensureTekkie(tabId: number) {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab.url || !/^https?:/.test(tab.url)) return; // Chrome pages and the Web Store are off limits
+    if (!(await loadSettings()).enabled) return;
+    try {
+      if (await chrome.tabs.sendMessage(tabId, { type: "tekkie:ping" })) return; // already there
+    } catch {
+      /* no live copy: inject one */
+    }
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+  } catch {
+    /* tab closed or not injectable: nothing to do */
+  }
+}
+
+chrome.tabs.onActivated.addListener(({ tabId }) => void ensureTekkie(tabId));
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  const [tab] = await chrome.tabs.query({ active: true, windowId });
+  if (tab?.id) void ensureTekkie(tab.id);
 });
+
+async function ensureInAllTabs() {
+  for (const tab of await chrome.tabs.query({ url: ["http://*/*", "https://*/*"] })) {
+    if (tab.id) void ensureTekkie(tab.id);
+  }
+}
+
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  // First install: grant the microphone once up front, so the first chat on any site just works.
+  if (reason === "install") void chrome.tabs.create({ url: chrome.runtime.getURL(MIC_SETUP) });
+  void ensureInAllTabs(); // tabs that were already open get Tekkie without a refresh
+});
+chrome.runtime.onStartup.addListener(() => void ensureInAllTabs());
 
 // --- Voice lives in an offscreen document so a conversation survives page navigations. -----------
 
@@ -248,12 +282,10 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<unk
   }
 }
 
-const SCREEN_ORIGINS = { origins: ["<all_urls>"] };
-
 /** A JPEG of the visible tab, scaled down so it is quick to send. Returns base64 without the data: prefix. */
 async function captureScreen(): Promise<string> {
-  if (!(await chrome.permissions.contains(SCREEN_ORIGINS))) {
-    throw new Error('Screen reading is switched off. Ask the user to open the Tekkie toolbar popup and tap "Let Tekkie see the screen".');
+  if (!(await loadSettings()).screenReading) {
+    throw new Error('Screen reading is switched off. Ask the user to turn on "Let Tekkie see the screen" in the Tekkie popup settings.');
   }
   const tab = await activeTab();
   const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "jpeg", quality: 70 });

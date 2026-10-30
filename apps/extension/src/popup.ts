@@ -118,22 +118,9 @@ document.getElementById("say")!.addEventListener("submit", async (e) => {
   voice.sendText(text);
 });
 
-// Reading the screen needs Chrome's "access all sites" permission, which only a click can grant.
-const SCREEN = { origins: ["<all_urls>"] };
-const screenBtn = document.getElementById("screen") as HTMLButtonElement;
-const screenNote = document.getElementById("screen-note")!;
-async function showScreenState() {
-  const on = await chrome.permissions.contains(SCREEN);
-  screenBtn.setAttribute("aria-pressed", String(on));
-  screenBtn.textContent = on ? "Screen reading is on" : "Let Tekkie see the screen";
-  screenNote.textContent = on ? "Tekkie only looks when you ask it to. Tap to turn off." : "Tekkie takes a screenshot of your tab only when you ask what's on screen.";
-}
-screenBtn.addEventListener("click", async () => {
-  if (await chrome.permissions.contains(SCREEN)) await chrome.permissions.remove(SCREEN);
-  else await chrome.permissions.request(SCREEN);
-  void showScreenState();
-});
-void showScreenState();
+const screen = document.getElementById("screen") as HTMLInputElement;
+screen.checked = settings.screenReading;
+screen.addEventListener("change", () => void saveSettings({ screenReading: screen.checked }));
 
 for (const skin of SKINS) {
   const btn = document.createElement("button");
