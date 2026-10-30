@@ -42,7 +42,7 @@ npm run build:extension
 2. Chrome opens a tab asking for the microphone. Allow it once and it works on every site.
 3. Keep the voice server running (`npm run dev`, or just `npm run dev -w server`). The toolbar popup lets you switch Tekkie on/off, pick a skin and set the server URL (default `http://localhost:8787`).
 
-**Browser control:** ask Tekkie to "search for sneakers", "click the second result", "scroll down" or "go back". It can read the page, click, type, scroll and open links or tabs, and shows a purple ring around whatever it touches. It never types into password or payment fields and asks you before risky buttons (buy, pay, send, delete). Turn it off in the toolbar popup.
+**Browser control:** ask Tekkie to "search for sneakers", "click the second result", "scroll down" or "go back". It can read the page, click, type, scroll and open links or tabs, and shows a purple ring around whatever it touches. It never types into password or payment fields and asks you before risky buttons (buy, pay, send, delete). Clicks, typing, hover and key presses are sent as real browser input (through Chrome's debugger), so they work on sites that ignore scripted events; Chrome shows its "started debugging this browser" bar while Tekkie is acting, and it lets go when the chat ends. Tekkie can also list, switch and close tabs, reload, and go back/forward. Turn it off in the toolbar popup.
 
 **Screen reading:** tap "Let Tekkie see the screen" in the toolbar popup (Chrome asks for site access once), then ask "what's on my screen?". Tekkie takes a screenshot of your current tab only when you ask, and sends it to Gemini. Tap the button again to switch it off.
 

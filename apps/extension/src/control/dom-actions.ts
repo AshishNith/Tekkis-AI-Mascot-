@@ -120,6 +120,49 @@ function target(id: unknown): Element {
   return el;
 }
 
+/**
+ * Scrolls an element into view and says where to click it. The background worker then sends a real
+ * (trusted) mouse click there; `hit` is false when something else covers the spot.
+ */
+export function aim(args: { id?: unknown; confirmed?: unknown }) {
+  const el = target(args.id);
+  const label = labelOf(el);
+  if (SENSITIVE.test(label) && args.confirmed !== true) {
+    throw new Error(`"${label}" has real consequences. Ask the user to confirm out loud, then call click again with confirmed=true.`);
+  }
+  el.scrollIntoView({ block: "center", inline: "center" });
+  highlight(el);
+  const r = el.getBoundingClientRect();
+  const x = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 1);
+  const y = Math.min(Math.max(r.top + r.height / 2, 1), innerHeight - 1);
+  const top = document.elementFromPoint(x, y);
+  return { x, y, label, hit: Boolean(top && (el.contains(top) || top.contains(el))) };
+}
+
+/** Focuses a text field and selects what is in it, ready for real typing. `native` is false for dropdowns etc. */
+export function prepareType(args: { id?: unknown }) {
+  const el = target(args.id);
+  if (el instanceof HTMLInputElement && (el.type === "password" || /^cc-/.test(el.autocomplete))) {
+    throw new Error("I never type into password or payment fields. Ask the user to fill that in themselves.");
+  }
+  el.scrollIntoView({ block: "center" });
+  highlight(el);
+  (el as HTMLElement).focus();
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+    try {
+      el.select();
+    } catch {
+      /* input types like email can't be selected: typing then appends */
+    }
+    return { native: !(el instanceof HTMLInputElement && ["checkbox", "radio", "button", "submit", "file", "range", "color"].includes(el.type)) };
+  }
+  if ((el as HTMLElement).isContentEditable) {
+    getSelection()?.selectAllChildren(el);
+    return { native: true };
+  }
+  return { native: false };
+}
+
 export function click(args: { id?: unknown; confirmed?: unknown }) {
   const el = target(args.id);
   const label = labelOf(el);
@@ -200,6 +243,10 @@ export function runAction(name: string, args: Record<string, unknown>): unknown 
   switch (name) {
     case "read_page":
       return readPage();
+    case "aim":
+      return aim(args);
+    case "prepare_type":
+      return prepareType(args);
     case "click":
       return click(args);
     case "type_text":

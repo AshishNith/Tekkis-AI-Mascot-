@@ -8,6 +8,7 @@ import { PORT_NAME, type ToUi, type ToVoice } from "./protocol";
 const ports = new Set<chrome.runtime.Port>();
 let session: LiveVoiceSession | undefined;
 let state: VoiceState = "idle";
+let lastCaption: Extract<ToUi, { type: "caption" }> | undefined;
 
 function broadcast(msg: ToUi) {
   for (const port of ports) port.postMessage(msg);
@@ -34,9 +35,16 @@ async function start() {
   );
   next.on("state", (s) => {
     state = s;
+    if (s === "idle") {
+      lastCaption = undefined;
+      void chrome.runtime.sendMessage({ type: "tekkie:release" }); // let go of the page's debugger bar
+    }
     broadcast({ type: "state", state: s });
   });
-  next.on("caption", (who, text, final) => broadcast({ type: "caption", who, text, final }));
+  next.on("caption", (who, text, final) => {
+    if (who === "tekkie") lastCaption = { type: "caption", who, text, final };
+    broadcast({ type: "caption", who, text, final });
+  });
   next.on("error", (message) => broadcast({ type: "error", message }));
   session = next;
   await next.start();
@@ -46,6 +54,7 @@ chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== PORT_NAME || port.sender?.id !== chrome.runtime.id) return;
   ports.add(port);
   port.postMessage({ type: "state", state } satisfies ToUi);
+  if (lastCaption && state !== "idle") port.postMessage(lastCaption);
   port.onDisconnect.addListener(() => ports.delete(port));
   port.onMessage.addListener((msg: ToVoice) => {
     if (msg.type === "start") {

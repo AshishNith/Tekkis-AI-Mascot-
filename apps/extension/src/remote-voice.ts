@@ -9,11 +9,20 @@ export class RemoteVoiceSession implements VoiceController {
   private out = 0;
   private mic = 0;
 
+  /** Resolves to true if a conversation was already running (e.g. the page just changed) and we re-joined it. */
+  readonly restored: Promise<boolean>;
+
   constructor() {
     // After a page navigation the conversation may still be running: pick it back up.
-    void chrome.runtime.sendMessage({ type: "tekkie:offscreen", create: false }).then((exists: boolean) => {
-      if (exists) this.connect();
-    });
+    this.restored = chrome.runtime
+      .sendMessage({ type: "tekkie:offscreen", create: false })
+      .then(async (exists: boolean) => {
+        if (!exists) return false;
+        this.connect();
+        await new Promise((r) => setTimeout(r, 250)); // let the state snapshot arrive
+        return this.active;
+      })
+      .catch(() => false);
   }
 
   on<K extends keyof VoiceEvents>(event: K, fn: VoiceEvents[K]) {

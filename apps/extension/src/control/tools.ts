@@ -84,4 +84,35 @@ export const BROWSER_TOOLS: FunctionDeclaration[] = [
     parametersJsonSchema: { type: "object", properties: { url: { type: "string" } }, required: ["url"] },
   },
   { name: "go_back", description: "Go back one page in the current tab." },
+  { name: "go_forward", description: "Go forward one page in the current tab." },
+  { name: "reload_page", description: "Reload the current tab." },
+  {
+    name: "press_key",
+    description: "Press a keyboard key in the page, e.g. Enter, Tab, Escape, ArrowDown, PageDown. Use after clicking or typing into something.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: { key: { type: "string", enum: ["Enter", "Tab", "Escape", "Backspace", "Delete", "Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"] } },
+      required: ["key"],
+    },
+  },
+  {
+    name: "hover",
+    description: "Move the mouse over an element by id, to open hover menus or tooltips.",
+    parametersJsonSchema: { type: "object", properties: { id: { type: "integer" } }, required: ["id"] },
+  },
+  { name: "list_tabs", description: "List the open browser tabs with their ids, titles and which one is active." },
+  {
+    name: "switch_tab",
+    description: "Switch to another open tab by the id from list_tabs.",
+    parametersJsonSchema: { type: "object", properties: { id: { type: "integer" } }, required: ["id"] },
+  },
+  {
+    name: "close_tab",
+    description: "Close a tab by the id from list_tabs. Ask the user first.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: { id: { type: "integer" }, confirmed: { type: "boolean", description: "True only after the user said yes" } },
+      required: ["id"],
+    },
+  },
 ];

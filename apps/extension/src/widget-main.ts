@@ -6,8 +6,16 @@ const parentWindow = window.parent;
 const send = (type: string, extra: Record<string, unknown> = {}) => parentWindow.postMessage({ tekkie: true, type, ...extra }, "*");
 
 const settings = await loadSettings();
+const voice = new RemoteVoiceSession();
 const tekkie = mountTekkie({
-  voice: new RemoteVoiceSession(),
+  voice,
+  shouldGreet: async () => {
+    if (await voice.restored) return false;
+    // Say hello once per browser session, not on every page you open.
+    const seen = (await chrome.storage.session.get("greeted")).greeted;
+    await chrome.storage.session.set({ greeted: true });
+    return !seen;
+  },
   skin: skinById(settings.skinId),
   frame: {
     move: (dx, dy) => send("move", { dx, dy }),

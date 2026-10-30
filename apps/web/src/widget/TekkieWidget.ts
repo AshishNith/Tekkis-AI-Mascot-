@@ -9,6 +9,8 @@ export interface TekkieOptions {
   skin?: Skin;
   /** Replaces the built-in voice session (the extension runs voice in a background document). */
   voice?: VoiceController;
+  /** Asked once at start-up: return false to skip the wave and greeting (e.g. a page reload mid-conversation). */
+  shouldGreet?: () => Promise<boolean>;
   /**
    * Set when Tekkie runs inside the Chrome extension's iframe. The host page then owns the
    * widget's position and size, and this callback set reports drags and size changes to it.
@@ -79,6 +81,7 @@ export function mountTekkie(options: TekkieOptions = {}) {
   }
 
   let lastUserLine = "";
+  let previousState: VoiceState = "idle";
   voice.on("caption", (who, text, final) => {
     if (who === "user") {
       lastUserLine = text;
@@ -96,8 +99,10 @@ export function mountTekkie(options: TekkieOptions = {}) {
     talkLabel.textContent = voice.active ? (state === "listening" ? "Listening… (stop)" : STATUS[state]) : STATUS[state];
     talkBtn.classList.toggle("live", voice.active);
     talkBtn.setAttribute("aria-pressed", String(voice.active));
-    if (state === "listening" && !lastUserLine) say("Hey! I'm Tekkie. What's up?", { you: "" });
+    // Only greet a conversation that is just starting, not one picked back up after a page load.
+    if (state === "listening" && previousState === "connecting" && !lastUserLine) say("Hey! I'm Tekkie. What's up?", { you: "" });
     if (state === "idle") lastUserLine = "";
+    previousState = state;
   });
 
   function toggleVoice() {
@@ -210,7 +215,8 @@ export function mountTekkie(options: TekkieOptions = {}) {
   };
   raf = requestAnimationFrame(loop);
 
-  setTimeout(() => {
+  setTimeout(async () => {
+    if (options.shouldGreet && !(await options.shouldGreet())) return;
     character.wave();
     say("Hi, I'm Tekkie! Tap me or press Talk to chat.");
   }, 600);
