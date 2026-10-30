@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tekkie</title>
+    <style>
+      :root { --bg: #fff; --text: #1d1838; --muted: #6b6690; --border: rgba(40, 30, 90, 0.18); --accent: #7c5cff; }
+      @media (prefers-color-scheme: dark) { :root { --bg: #1f1b36; --text: #f1efff; --muted: #a7a2c9; --border: rgba(255, 255, 255, 0.18); } }
+      body { width: 300px; margin: 0; padding: 16px; box-sizing: border-box; font: 14px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+      h1 { font-size: 18px; margin: 0 0 12px; }
+      label.row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 14px 0 6px; }
+      input[type="text"] { width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: inherit; font: inherit; }
+      button { font: inherit; border: 1px solid var(--border); background: transparent; color: inherit; border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+      button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+      #skins { display: flex; flex-wrap: wrap; gap: 6px; }
+      #status { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+      #status.ok { color: #1a8a4a; } #status.warn { color: #e0364f; }
+      #mic { margin-top: 14px; width: 100%; }
+    </style>
+  </head>
+  <body>
+    <h1>Tekkie</h1>
+    <label class="row"><span>Show Tekkie on pages</span><input id="enabled" type="checkbox" /></label>
+    <label class="row"><span>Let Tekkie use the page<br /><small>click, type, scroll, open links</small></span><input id="control" type="checkbox" /></label>
+    <h2>Skin</h2>
+    <div id="skins"></div>
+    <h2>Voice server</h2>
+    <input id="server" type="text" spellcheck="false" aria-label="Voice server URL" />
+    <p id="status" role="status">Checking…</p>
+    <button id="mic" type="button">Set up microphone</button>
+    <script type="module" src="/src/popup.ts"></script>
+  </body>
+</html>

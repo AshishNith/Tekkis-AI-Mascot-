@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Tekkie",
+  "version": "0.1.0",
+  "description": "A 3D AI buddy that floats over every page and talks with you in real time.",
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "action": { "default_title": "Tekkie", "default_popup": "popup.html" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "permissions": ["storage", "offscreen"],
+  "host_permissions": ["http://localhost:8787/*"],
+  "content_scripts": [
+    { "matches": ["http://*/*", "https://*/*"], "js": ["content.js"], "run_at": "document_idle" }
+  ],
+  "web_accessible_resources": [{ "resources": ["widget.html"], "matches": ["<all_urls>"] }]
+}

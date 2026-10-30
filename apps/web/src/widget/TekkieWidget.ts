@@ -1,12 +1,24 @@
 import { TekkieCharacter } from "../mascot/TekkieCharacter";
 import { DEFAULT_SKIN, type Skin } from "../mascot/skins";
-import { LiveVoiceSession, type VoiceState } from "../voice/LiveVoiceSession";
+import { LiveVoiceSession, type VoiceController, type VoiceState } from "../voice/LiveVoiceSession";
 import { WIDGET_CSS } from "./styles";
 
 export interface TekkieOptions {
   /** Where the Tekkie server lives. Empty = same origin. */
   apiBase?: string;
   skin?: Skin;
+  /** Replaces the built-in voice session (the extension runs voice in a background document). */
+  voice?: VoiceController;
+  /**
+   * Set when Tekkie runs inside the Chrome extension's iframe. The host page then owns the
+   * widget's position and size, and this callback set reports drags and size changes to it.
+   */
+  frame?: {
+    move(dx: number, dy: number): void;
+    settle(): void;
+    resize(width: number, height: number): void;
+    micBlocked(): void;
+  };
 }
 
 const STATUS: Record<VoiceState, string> = {
@@ -38,6 +50,7 @@ export function mountTekkie(options: TekkieOptions = {}) {
       <form class="type"><input type="text" placeholder="Say something to Tekkie…" aria-label="Message" /><button type="submit">Send</button></form>
     </div>`;
   document.body.appendChild(host);
+  const frame = options.frame;
 
   const $ = <T extends Element>(sel: string) => root.querySelector<T>(sel)!;
   const box = $<HTMLDivElement>(".tekkie");
@@ -52,7 +65,7 @@ export function mountTekkie(options: TekkieOptions = {}) {
 
   const character = new TekkieCharacter($<HTMLCanvasElement>("canvas"));
   character.setSkin(options.skin ?? DEFAULT_SKIN);
-  const voice = new LiveVoiceSession(options.apiBase ?? "");
+  const voice: VoiceController = options.voice ?? new LiveVoiceSession(options.apiBase ?? "");
 
   // --- Speech bubble -------------------------------------------------------
   let hideTimer = 0;
@@ -74,7 +87,10 @@ export function mountTekkie(options: TekkieOptions = {}) {
       say(text, { you: lastUserLine, sticky: !final });
     }
   });
-  voice.on("error", (message) => say(message, { error: true, you: "" }));
+  voice.on("error", (message) => {
+    say(message, { error: true, you: "" });
+    if (frame && message.startsWith("Microphone access")) frame.micBlocked();
+  });
   voice.on("state", (state) => {
     character.setState(state);
     talkLabel.textContent = voice.active ? (state === "listening" ? "Listening… (stop)" : STATUS[state]) : STATUS[state];
@@ -107,6 +123,7 @@ export function mountTekkie(options: TekkieOptions = {}) {
   // Anchored by its bottom edge so the speech bubble grows upward, never off-screen.
   let pos = { x: 0, b: 0 };
   function place(x: number, b: number) {
+    if (frame) return;
     pos = {
       x: Math.min(Math.max(MARGIN, x), window.innerWidth - box.offsetWidth - MARGIN),
       b: Math.min(Math.max(MARGIN, b), window.innerHeight - box.offsetHeight - MARGIN),
@@ -114,29 +131,51 @@ export function mountTekkie(options: TekkieOptions = {}) {
     box.style.left = `${pos.x}px`;
     box.style.bottom = `${pos.b}px`;
   }
-  try {
-    const saved = JSON.parse(localStorage.getItem(POSITION_KEY) ?? "null");
-    if (saved) place(saved.x, saved.b);
-    else throw 0;
-  } catch {
-    place(window.innerWidth, 0); // bottom-right after clamping
+  if (frame) {
+    // The iframe is exactly as big as Tekkie; the host page moves it.
+    box.style.left = "0";
+    box.style.bottom = "0";
+    box.style.width = "260px";
+    box.classList.add("embedded");
+    new ResizeObserver(() => frame.resize(box.offsetWidth, box.offsetHeight)).observe(box);
+  } else {
+    try {
+      const saved = JSON.parse(localStorage.getItem(POSITION_KEY) ?? "null");
+      if (saved) place(saved.x, saved.b);
+      else throw 0;
+    } catch {
+      place(window.innerWidth, 0); // bottom-right after clamping
+    }
   }
   window.addEventListener("resize", () => place(pos.x, pos.b));
-  new ResizeObserver(() => place(pos.x, pos.b)).observe(box);
+  if (!frame) new ResizeObserver(() => place(pos.x, pos.b)).observe(box);
 
-  let drag: { dx: number; db: number; startX: number; startY: number; moved: boolean } | null = null;
+  let drag: { dx: number; db: number; startX: number; startY: number; lastX: number; lastY: number; moved: boolean } | null = null;
   stage.addEventListener("pointerdown", (e) => {
     stage.setPointerCapture(e.pointerId);
-    drag = { dx: e.clientX - pos.x, db: window.innerHeight - e.clientY - pos.b, startX: e.clientX, startY: e.clientY, moved: false };
+    drag = { dx: e.clientX - pos.x, db: window.innerHeight - e.clientY - pos.b, startX: e.clientX, startY: e.clientY, lastX: e.screenX, lastY: e.screenY, moved: false };
   });
   stage.addEventListener("pointermove", (e) => {
     if (!drag) return;
     if (!drag.moved && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 6) drag.moved = true;
-    if (drag.moved) place(e.clientX - drag.dx, window.innerHeight - e.clientY - drag.db);
+    if (!drag.moved) return;
+    if (frame) {
+      // Screen coordinates stay put while the host moves the iframe under the pointer.
+      frame.move(e.screenX - drag.lastX, e.screenY - drag.lastY);
+      drag.lastX = e.screenX;
+      drag.lastY = e.screenY;
+    } else {
+      place(e.clientX - drag.dx, window.innerHeight - e.clientY - drag.db);
+    }
+  });
+  stage.addEventListener("pointercancel", () => {
+    drag = null;
   });
   stage.addEventListener("pointerup", () => {
     if (!drag) return;
-    if (drag.moved) {
+    if (drag.moved && frame) {
+      frame.settle();
+    } else if (drag.moved) {
       try {
         localStorage.setItem(POSITION_KEY, JSON.stringify(pos));
       } catch {
@@ -150,25 +189,26 @@ export function mountTekkie(options: TekkieOptions = {}) {
   });
 
   // Tekkie keeps an eye on the pointer anywhere on the page.
-  window.addEventListener("pointermove", (e) => {
+  function lookAtPoint(x: number, y: number) {
     const r = stage.getBoundingClientRect();
-    character.lookAt((e.clientX - (r.left + r.width / 2)) / 500, -(e.clientY - (r.top + r.height * 0.4)) / 400);
-  });
+    character.lookAt((x - (r.left + r.width / 2)) / 500, -(y - (r.top + r.height * 0.4)) / 400);
+  }
+  window.addEventListener("pointermove", (e) => lookAtPoint(e.clientX, e.clientY));
 
   // --- Render loop -----------------------------------------------------------
   const sizeCanvas = () => character.resize(stage.clientWidth, stage.clientHeight);
   new ResizeObserver(sizeCanvas).observe(stage);
   sizeCanvas();
 
-  let frame = 0;
+  let raf = 0;
   let last = performance.now();
   const loop = (now: number) => {
     character.setLevels(voice.outputLevel, voice.inputLevel);
     character.update((now - last) / 1000);
     last = now;
-    frame = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(loop);
   };
-  frame = requestAnimationFrame(loop);
+  raf = requestAnimationFrame(loop);
 
   setTimeout(() => {
     character.wave();
@@ -176,12 +216,14 @@ export function mountTekkie(options: TekkieOptions = {}) {
   }, 600);
 
   return {
+    /** For the extension: the pointer position (in this frame's coordinates) when it is outside the frame. */
+    lookAtPoint,
     setSkin: (skin: Skin) => character.setSkin(skin),
     start: () => voice.start(),
     stop: () => voice.stop(),
     destroy() {
       voice.stop();
-      cancelAnimationFrame(frame);
+      cancelAnimationFrame(raf);
       character.dispose();
       host.remove();
     },

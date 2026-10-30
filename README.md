@@ -30,6 +30,22 @@ To check which realtime models your key can use:
 npm run models -w server
 ```
 
+### Chrome extension
+
+Tekkie also ships as a Chrome extension that floats over every website (`apps/extension`).
+
+```bash
+npm run build:extension
+```
+
+1. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick `apps/extension/dist`.
+2. Chrome opens a tab asking for the microphone. Allow it once and it works on every site.
+3. Keep the voice server running (`npm run dev`, or just `npm run dev -w server`). The toolbar popup lets you switch Tekkie on/off, pick a skin and set the server URL (default `http://localhost:8787`).
+
+**Browser control:** ask Tekkie to "search for sneakers", "click the second result", "scroll down" or "go back". It can read the page, click, type, scroll and open links or tabs, and shows a purple ring around whatever it touches. It never types into password or payment fields and asks you before risky buttons (buy, pay, send, delete). Turn it off in the toolbar popup.
+
+Tekkie lives in an extension iframe so the mic permission is per extension, not per site. Sites with a strict `frame-src` CSP can block it.
+
 ### Production build
 
 ```bash

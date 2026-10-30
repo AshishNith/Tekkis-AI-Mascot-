@@ -24,7 +24,8 @@ function rateLimited(ip: string): boolean {
 function originAllowed(origin: string | undefined): boolean {
   if (!origin) return true; // same-origin requests and curl
   if (config.allowedOrigins.includes(origin)) return true;
-  return config.allowedOrigins.length === 0 && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  // With no allow-list (local dev) the Chrome extension's pages may also ask for tokens.
+  return config.allowedOrigins.length === 0 && /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?|chrome-extension:\/\/[a-p]{32})$/.test(origin);
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown, origin?: string) {

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tekkie · microphone</title>
+    <style>
+      body { font: 16px/1.5 system-ui, sans-serif; max-width: 460px; margin: 15vh auto; padding: 0 20px; color: #1d1838; }
+      h1 { font-size: 26px; margin-bottom: 4px; }
+      button { font: inherit; font-weight: 600; background: #7c5cff; color: #fff; border: 0; border-radius: 999px; padding: 10px 22px; cursor: pointer; }
+      #result { margin-top: 16px; }
+      .ok { color: #1a8a4a; } .bad { color: #e0364f; }
+      @media (prefers-color-scheme: dark) { body { background: #17142b; color: #f1efff; } }
+    </style>
+  </head>
+  <body>
+    <h1>Let Tekkie hear you</h1>
+    <p>Tekkie talks with you in real time, so it needs your microphone. Chrome will ask once and remember it for every site.</p>
+    <button id="allow" type="button">Allow microphone</button>
+    <p id="result" role="status"></p>
+    <script type="module" src="/src/permission.ts"></script>
+  </body>
+</html>

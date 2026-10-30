@@ -52,6 +52,8 @@ export const WIDGET_CSS = `
   position: relative;
 }
 .bubble.show { opacity: 1; transform: none; }
+/* In the extension's iframe an invisible bubble would still block clicks on the page below it. */
+.embedded .bubble:not(.show) { display: none; }
 .bubble::after {
   content: "";
   position: absolute;
@@ -128,8 +130,8 @@ input {
   box-shadow: var(--tk-shadow);
 }
 @media (max-width: 480px) {
-  .tekkie { width: 160px; }
-  .stage { width: 160px; height: 185px; }
+  .tekkie:not(.embedded) { width: 160px; }
+  .tekkie:not(.embedded) .stage { width: 160px; height: 185px; }
   .bubble { max-width: 220px; font-size: 13px; }
 }
 `;

@@ -1,4 +1,4 @@
-import type { LiveServerMessage, Session } from "@google/genai";
+import type { FunctionCall, FunctionDeclaration, LiveServerMessage, Session } from "@google/genai";
 import { MicCapture, PcmPlayer, int16ToBase64 } from "./audio";
 
 export type VoiceState = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
@@ -10,6 +10,23 @@ export interface VoiceEvents {
   error: (message: string) => void;
 }
 
+/** What the widget needs from a voice backend: the in-page session below, or the extension's remote one. */
+export interface VoiceController {
+  on<K extends keyof VoiceEvents>(event: K, fn: VoiceEvents[K]): void;
+  readonly active: boolean;
+  readonly outputLevel: number;
+  readonly inputLevel: number;
+  start(): Promise<void>;
+  stop(): void;
+  sendText(text: string): void;
+}
+
+/** Lets the model call functions (e.g. browser actions) during a conversation. */
+export interface VoiceTools {
+  declarations: FunctionDeclaration[];
+  handle(name: string, args: Record<string, unknown>): Promise<unknown>;
+}
+
 interface TokenResponse {
   token: string;
   model: string;
@@ -19,7 +36,7 @@ interface TokenResponse {
  * One realtime voice conversation with Gemini Live. The browser streams mic audio straight to
  * Gemini using a short-lived token from our server, and plays the spoken reply as it arrives.
  */
-export class LiveVoiceSession {
+export class LiveVoiceSession implements VoiceController {
   private session?: Session;
   private mic?: MicCapture;
   private player = new PcmPlayer();
@@ -30,7 +47,7 @@ export class LiveVoiceSession {
   private turnComplete = false;
   private micLevel = 0;
 
-  constructor(private apiBase = "") {}
+  constructor(private apiBase = "", private tools?: VoiceTools) {}
 
   on<K extends keyof VoiceEvents>(event: K, fn: VoiceEvents[K]) {
     this.listeners[event].push(fn);
@@ -79,6 +96,7 @@ export class LiveVoiceSession {
           outputAudioTranscription: {},
           // Lets a conversation run past the default audio session limit.
           contextWindowCompression: { slidingWindow: {} },
+          ...(this.tools ? { tools: [{ functionDeclarations: this.tools.declarations }] } : {}),
         },
         callbacks: {
           onmessage: (msg) => this.handleMessage(msg),
@@ -138,6 +156,7 @@ export class LiveVoiceSession {
 
   private handleMessage(msg: LiveServerMessage) {
     const content = msg.serverContent;
+    if (msg.toolCall?.functionCalls?.length) void this.runTools(msg.toolCall.functionCalls);
     if (msg.goAway) this.emit("error", "Session is about to end — tap Tekkie to start a new one.");
     if (!content) return;
 
@@ -173,6 +192,22 @@ export class LiveVoiceSession {
       this.flushUserLine();
       this.waitForPlaybackEnd();
     }
+  }
+
+  private async runTools(calls: FunctionCall[]) {
+    if (!this.tools) return;
+    this.setState("thinking");
+    const functionResponses = [];
+    for (const call of calls) {
+      let response: Record<string, unknown>;
+      try {
+        response = { output: await this.tools.handle(call.name ?? "", (call.args ?? {}) as Record<string, unknown>) };
+      } catch (err) {
+        response = { error: err instanceof Error ? err.message : String(err) };
+      }
+      functionResponses.push({ id: call.id, name: call.name, response });
+    }
+    this.session?.sendToolResponse({ functionResponses });
   }
 
   private waitForPlaybackEnd() {

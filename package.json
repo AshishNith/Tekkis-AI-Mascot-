@@ -5,11 +5,13 @@
   "type": "module",
   "workspaces": [
     "apps/web",
+    "apps/extension",
     "server"
   ],
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "npm run build -w apps/web && npm run build -w server",
+    "build:extension": "npm run build -w apps/extension",
     "start": "npm run start -w server",
     "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w server"
   }
