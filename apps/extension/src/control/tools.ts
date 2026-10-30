@@ -38,6 +38,25 @@ export const BROWSER_TOOLS: FunctionDeclaration[] = [
     },
   },
   {
+    name: "fill_form",
+    description:
+      "Fill in several form fields at once (text boxes, text areas, dropdowns). Faster than type_text one by one. Does not submit the form and skips password/payment fields.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        fields: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { id: { type: "integer" }, text: { type: "string", description: "Text to type, or the option to pick in a dropdown" } },
+            required: ["id", "text"],
+          },
+        },
+      },
+      required: ["fields"],
+    },
+  },
+  {
     name: "scroll",
     description: "Scroll the page.",
     parametersJsonSchema: {

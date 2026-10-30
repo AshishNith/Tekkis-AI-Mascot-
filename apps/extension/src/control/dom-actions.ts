@@ -24,7 +24,7 @@ const INTERACTIVE = [
 ].join(",");
 
 /** Clicking these changes the world, so the model must have asked the user first. */
-const SENSITIVE = /\b(buy now|place (your )?order|pay( now)?|purchase|checkout|confirm (order|payment)|delete|remove|send|sign ?out|log ?out|unsubscribe|subscribe|transfer|donate)\b/i;
+const SENSITIVE = /\b(buy now|place (your )?order|pay( now)?|purchase|checkout|submit|confirm (order|payment)|delete|remove|send|sign ?out|log ?out|unsubscribe|subscribe|transfer|donate)\b/i;
 
 let elements = new Map<number, Element>();
 
@@ -150,6 +150,13 @@ export function typeText(args: { id?: unknown; text?: unknown; submit?: unknown 
     Object.getOwnPropertyDescriptor(proto, "value")!.set!.call(el, text);
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
+  } else if (el instanceof HTMLSelectElement) {
+    const want = text.trim().toLowerCase();
+    const option = [...el.options].find((o) => o.text.trim().toLowerCase() === want) ?? [...el.options].find((o) => o.text.toLowerCase().includes(want));
+    if (!option) throw new Error(`No option matches "${text}". Options: ${[...el.options].map((o) => o.text.trim()).slice(0, 12).join(", ")}`);
+    el.value = option.value;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
   } else if ((el as HTMLElement).isContentEditable) {
     document.execCommand("selectAll");
     document.execCommand("insertText", false, text);
@@ -162,6 +169,19 @@ export function typeText(args: { id?: unknown; text?: unknown; submit?: unknown 
     else for (const type of ["keydown", "keypress", "keyup"]) el.dispatchEvent(new KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
   }
   return { typed: text.length + " characters", submitted: args.submit === true };
+}
+
+/** Fills several fields in one go. Each field succeeds or fails on its own, so one odd field doesn't lose the rest. */
+export function fillForm(args: { fields?: unknown }) {
+  if (!Array.isArray(args.fields)) throw new Error("fields must be a list of {id, text}.");
+  return args.fields.map((f: { id?: unknown; text?: unknown }) => {
+    try {
+      typeText({ id: f.id, text: f.text });
+      return { id: f.id, filled: true };
+    } catch (err) {
+      return { id: f.id, filled: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
 }
 
 export function scroll(args: { direction?: unknown; amount?: unknown }) {
@@ -184,6 +204,8 @@ export function runAction(name: string, args: Record<string, unknown>): unknown 
       return click(args);
     case "type_text":
       return typeText(args);
+    case "fill_form":
+      return fillForm(args);
     case "scroll":
       return scroll(args);
     default:

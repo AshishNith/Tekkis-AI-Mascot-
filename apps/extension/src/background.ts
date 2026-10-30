@@ -26,7 +26,7 @@ async function ensureOffscreen() {
 
 // --- Browser control: the tools Gemini calls land here. ----------------------------------------
 
-const PAGE_ACTIONS = new Set(["read_page", "click", "type_text", "scroll"]);
+const PAGE_ACTIONS = new Set(["read_page", "click", "type_text", "fill_form", "scroll"]);
 
 async function activeTab() {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
