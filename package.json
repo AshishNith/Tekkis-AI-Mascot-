@@ -3,9 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "workspaces": ["apps/web", "server"],
+  "workspaces": [
+    "apps/web",
+    "server"
+  ],
   "scripts": {
-    "dev": "npm run dev -w server & npm run dev -w apps/web",
+    "dev": "node scripts/dev.mjs",
     "build": "npm run build -w apps/web && npm run build -w server",
     "start": "npm run start -w server",
     "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w server"
