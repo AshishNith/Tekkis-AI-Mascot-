@@ -8,6 +8,9 @@
       @media (prefers-color-scheme: dark) { :root { --bg: #1f1b36; --text: #f1efff; --muted: #a7a2c9; --border: rgba(255, 255, 255, 0.18); } }
       body { width: 300px; margin: 0; padding: 16px; box-sizing: border-box; font: 14px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--text); }
       h1 { font-size: 18px; margin: 0 0 12px; }
+      .hero { display: flex; flex-direction: column; align-items: center; margin: -4px 0 4px; }
+      .hero h1 { margin: 0; }
+      #mascot { width: 180px; height: 190px; cursor: pointer; }
       label.row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
       h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 14px 0 6px; }
       input[type="text"] { width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: inherit; font: inherit; }
@@ -22,7 +25,7 @@
     </style>
   </head>
   <body>
-    <h1>Tekkie</h1>
+    <div class="hero"><canvas id="mascot" aria-label="Tekkie the robot"></canvas><h1>Tekkie</h1></div>
     <label class="row"><span>Show Tekkie on pages</span><input id="enabled" type="checkbox" /></label>
     <label class="row"><span>Let Tekkie use the page<br /><small>click, type, scroll, open links</small></span><input id="control" type="checkbox" /></label>
     <button id="screen" type="button" class="wide">Let Tekkie see the screen</button>

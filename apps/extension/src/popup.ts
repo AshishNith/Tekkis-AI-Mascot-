@@ -1,3 +1,4 @@
+import { TekkieCharacter } from "../../web/src/mascot/TekkieCharacter";
 import { SKINS } from "../../web/src/mascot/skins";
 import { loadSettings, saveSettings } from "./settings";
 
@@ -21,6 +22,25 @@ async function checkServer(url: string) {
 }
 
 const settings = await loadSettings();
+
+// Tekkie says hi from the popup too, and follows the pointer.
+const canvas = document.getElementById("mascot") as HTMLCanvasElement;
+const mascot = new TekkieCharacter(canvas);
+mascot.setSkin(SKINS.find((s) => s.id === settings.skinId) ?? SKINS[0]);
+mascot.resize(canvas.clientWidth, canvas.clientHeight);
+setTimeout(() => mascot.wave(), 300);
+canvas.addEventListener("click", () => mascot.poke());
+window.addEventListener("pointermove", (e) => {
+  const r = canvas.getBoundingClientRect();
+  mascot.lookAt((e.clientX - (r.left + r.width / 2)) / 250, -(e.clientY - (r.top + r.height * 0.4)) / 200);
+});
+let last = performance.now();
+const frame = (now: number) => {
+  mascot.update((now - last) / 1000);
+  last = now;
+  requestAnimationFrame(frame);
+};
+requestAnimationFrame(frame);
 enabled.checked = settings.enabled;
 server.value = settings.serverUrl;
 void checkServer(settings.serverUrl);
@@ -68,6 +88,8 @@ for (const skin of SKINS) {
   btn.setAttribute("aria-pressed", String(skin.id === settings.skinId));
   btn.addEventListener("click", () => {
     void saveSettings({ skinId: skin.id });
+    mascot.setSkin(skin);
+    mascot.wave();
     skinsEl.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
   });
   skinsEl.appendChild(btn);
