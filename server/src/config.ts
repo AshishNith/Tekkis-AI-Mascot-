@@ -10,7 +10,7 @@ export const config = {
   repoRoot,
   port: Number(process.env.PORT ?? 8787),
   geminiApiKey: process.env.GEMINI_API_KEY ?? "",
-  liveModel: process.env.GEMINI_LIVE_MODEL || "gemini-3.1-flash-live-preview",
+  liveModel: process.env.GEMINI_LIVE_MODEL || "gemini-3.8-live",
   voice: process.env.GEMINI_VOICE || "Puck",
   allowedOrigins: (process.env.ALLOWED_ORIGINS ?? "")
     .split(",")
