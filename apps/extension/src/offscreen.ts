@@ -14,6 +14,11 @@ function broadcast(msg: ToUi) {
 }
 
 async function callBrowserTool(name: string, args: Record<string, unknown>) {
+  if (name === "look_at_screen") {
+    const shot = (await chrome.runtime.sendMessage({ type: "tekkie:screenshot" })) as { ok: boolean; image?: string; error?: string };
+    if (!shot?.ok || !shot.image) throw new Error(shot?.error ?? "I couldn't capture the screen.");
+    return { output: "This is a screenshot of the user's current screen. Describe or answer from it.", imageJpeg: shot.image };
+  }
   const reply = (await chrome.runtime.sendMessage({ type: "tekkie:tool", name, args })) as { ok: boolean; output?: unknown; error?: string };
   if (!reply?.ok) throw new Error(reply?.error ?? "The browser action failed.");
   return reply.output;

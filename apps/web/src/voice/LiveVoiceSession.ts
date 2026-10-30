@@ -21,6 +21,12 @@ export interface VoiceController {
   sendText(text: string): void;
 }
 
+/** A tool result that also shows the model a picture (e.g. a screenshot). */
+export interface ToolResultWithImage {
+  output: unknown;
+  imageJpeg: string;
+}
+
 /** Lets the model call functions (e.g. browser actions) during a conversation. */
 export interface VoiceTools {
   declarations: FunctionDeclaration[];
@@ -200,12 +206,20 @@ export class LiveVoiceSession implements VoiceController {
     const functionResponses = [];
     for (const call of calls) {
       let response: Record<string, unknown>;
+      let parts: { inlineData: { mimeType: string; data: string } }[] | undefined;
       try {
-        response = { output: await this.tools.handle(call.name ?? "", (call.args ?? {}) as Record<string, unknown>) };
+        const result = await this.tools.handle(call.name ?? "", (call.args ?? {}) as Record<string, unknown>);
+        if (result && typeof result === "object" && "imageJpeg" in result) {
+          const withImage = result as ToolResultWithImage;
+          response = { output: withImage.output };
+          parts = [{ inlineData: { mimeType: "image/jpeg", data: withImage.imageJpeg } }];
+        } else {
+          response = { output: result };
+        }
       } catch (err) {
         response = { error: err instanceof Error ? err.message : String(err) };
       }
-      functionResponses.push({ id: call.id, name: call.name, response });
+      functionResponses.push({ id: call.id, name: call.name, response, ...(parts ? { parts } : {}) });
     }
     this.session?.sendToolResponse({ functionResponses });
   }

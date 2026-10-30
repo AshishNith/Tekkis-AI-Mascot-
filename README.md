@@ -44,6 +44,8 @@ npm run build:extension
 
 **Browser control:** ask Tekkie to "search for sneakers", "click the second result", "scroll down" or "go back". It can read the page, click, type, scroll and open links or tabs, and shows a purple ring around whatever it touches. It never types into password or payment fields and asks you before risky buttons (buy, pay, send, delete). Turn it off in the toolbar popup.
 
+**Screen reading:** tap "Let Tekkie see the screen" in the toolbar popup (Chrome asks for site access once), then ask "what's on my screen?". Tekkie takes a screenshot of your current tab only when you ask, and sends it to Gemini. Tap the button again to switch it off.
+
 Tekkie lives in an extension iframe so the mic permission is per extension, not per site. Sites with a strict `frame-src` CSP can block it.
 
 ### Production build

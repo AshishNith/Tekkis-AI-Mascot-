@@ -8,6 +8,11 @@ export const BROWSER_TOOLS: FunctionDeclaration[] = [
       "Look at the page the user is on. Returns its URL, title, a text excerpt and a numbered list of clickable/typable elements. Call this before click or type_text, and again after the page changes.",
   },
   {
+    name: "look_at_screen",
+    description:
+      "Take a screenshot of what the user is looking at right now and look at it. Use it when they ask about what is on their screen, or for things read_page can't show: images, charts, videos, layout, colours. After calling it, describe or answer from what you see.",
+  },
+  {
     name: "click",
     description: "Click an element by the id from the latest read_page.",
     parametersJsonSchema: {

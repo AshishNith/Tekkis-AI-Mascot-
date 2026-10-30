@@ -17,12 +17,16 @@
       #status { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
       #status.ok { color: #1a8a4a; } #status.warn { color: #e0364f; }
       #mic { margin-top: 14px; width: 100%; }
+      .wide { width: 100%; }
+      .note { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
     </style>
   </head>
   <body>
     <h1>Tekkie</h1>
     <label class="row"><span>Show Tekkie on pages</span><input id="enabled" type="checkbox" /></label>
     <label class="row"><span>Let Tekkie use the page<br /><small>click, type, scroll, open links</small></span><input id="control" type="checkbox" /></label>
+    <button id="screen" type="button" class="wide">Let Tekkie see the screen</button>
+    <p id="screen-note" class="note"></p>
     <h2>Skin</h2>
     <div id="skins"></div>
     <h2>Voice server</h2>

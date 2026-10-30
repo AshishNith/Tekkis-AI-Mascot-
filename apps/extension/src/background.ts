@@ -108,6 +108,26 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<unk
   }
 }
 
+const SCREEN_ORIGINS = { origins: ["<all_urls>"] };
+
+/** A JPEG of the visible tab, scaled down so it is quick to send. Returns base64 without the data: prefix. */
+async function captureScreen(): Promise<string> {
+  if (!(await chrome.permissions.contains(SCREEN_ORIGINS))) {
+    throw new Error('Screen reading is switched off. Ask the user to open the Tekkie toolbar popup and tap "Let Tekkie see the screen".');
+  }
+  const tab = await activeTab();
+  const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "jpeg", quality: 70 });
+  const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
+  const scale = Math.min(1, 1280 / bitmap.width);
+  const canvas = new OffscreenCanvas(Math.round(bitmap.width * scale), Math.round(bitmap.height * scale));
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.7 });
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+}
+
 chrome.runtime.onMessage.addListener((msg: { type?: string; create?: boolean; name?: string; args?: Record<string, unknown> }, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
 
@@ -118,6 +138,12 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; create?: boolean; na
       if (msg.create) await ensureOffscreen();
       sendResponse(await hasOffscreen());
     })();
+    return true;
+  } else if (msg?.type === "tekkie:screenshot") {
+    captureScreen().then(
+      (image) => sendResponse({ ok: true, image }),
+      (err: unknown) => sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }),
+    );
     return true;
   } else if (msg?.type === "tekkie:settings") {
     void loadSettings().then(sendResponse);
