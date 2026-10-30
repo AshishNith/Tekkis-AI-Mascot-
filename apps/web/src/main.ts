@@ -1,7 +1,8 @@
 import { mountTekkie } from "./widget/TekkieWidget";
 import { SKINS } from "./mascot/skins";
+import { LiveVoiceSession } from "./voice/LiveVoiceSession";
 
-const tekkie = mountTekkie();
+const tekkie = mountTekkie({ voice: new LiveVoiceSession("") });
 
 // Skin picker for the playground page.
 const skinsEl = document.getElementById("skins")!;

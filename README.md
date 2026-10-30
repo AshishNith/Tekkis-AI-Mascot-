@@ -46,7 +46,7 @@ npm run build:extension
 
 **Screen reading:** tap "Let Tekkie see the screen" in the toolbar popup (Chrome asks for site access once), then ask "what's on my screen?". Tekkie takes a screenshot of your current tab only when you ask, and sends it to Gemini. Tap the button again to switch it off.
 
-Tekkie lives in an extension iframe so the mic permission is per extension, not per site. Sites with a strict `frame-src` CSP can block it.
+Tekkie draws itself straight into the page (in a shadow root), while the voice engine, microphone and speaker run in the extension's background page, so strict site security rules can't block it and the chat survives page changes. Click the toolbar icon for the control panel: **Show Tekkie on this page**, **Talk**, and a text box.
 
 ### Production build
 

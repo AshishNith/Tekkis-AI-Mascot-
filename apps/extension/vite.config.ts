@@ -12,7 +12,6 @@ export default defineConfig({
     assetsInlineLimit: (file) => (file.endsWith("-worklet.js") ? false : undefined),
     rollupOptions: {
       input: {
-        widget: resolve(__dirname, "widget.html"),
         popup: resolve(__dirname, "popup.html"),
         permission: resolve(__dirname, "permission.html"),
         offscreen: resolve(__dirname, "offscreen.html"),

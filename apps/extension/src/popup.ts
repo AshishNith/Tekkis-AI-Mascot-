@@ -1,5 +1,6 @@
 import { TekkieCharacter } from "../../web/src/mascot/TekkieCharacter";
 import { SKINS } from "../../web/src/mascot/skins";
+import { RemoteVoiceSession } from "./remote-voice";
 import { loadSettings, saveSettings } from "./settings";
 
 const enabled = document.getElementById("enabled") as HTMLInputElement;
@@ -62,6 +63,59 @@ server.addEventListener("change", () => {
   }
   void saveSettings({ serverUrl: url });
   void checkServer(url);
+});
+
+// --- Control panel: show Tekkie on the page, talk to it, type to it. -----------------------------
+
+async function showOnPage() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+  await saveSettings({ enabled: true });
+  enabled.checked = true;
+  const ask = () => chrome.tabs.sendMessage(tab.id!, { type: "tekkie:show" });
+  try {
+    await ask();
+  } catch {
+    // The tab was open before Tekkie was installed or reloaded: put Tekkie into it now.
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+      await ask();
+    } catch {
+      caption.textContent = "Chrome doesn't let extensions run on this page. Open a normal website and try again.";
+    }
+  }
+}
+
+const caption = document.getElementById("caption")!;
+const talkBtn = document.getElementById("talk") as HTMLButtonElement;
+const voice = new RemoteVoiceSession();
+const STATE_LABEL = { idle: "Talk", connecting: "Connecting…", listening: "Stop", thinking: "Stop", speaking: "Stop", error: "Talk" } as const;
+voice.on("state", (state) => {
+  talkBtn.textContent = STATE_LABEL[state];
+  talkBtn.setAttribute("aria-pressed", String(voice.active));
+  if (state === "listening" && !caption.textContent) caption.textContent = "Listening… say something!";
+  if (state === "idle") caption.textContent = "";
+});
+voice.on("caption", (who, text) => {
+  caption.textContent = who === "user" ? `You: ${text}` : text;
+});
+voice.on("error", (message) => {
+  caption.textContent = message;
+});
+document.getElementById("show")!.addEventListener("click", () => void showOnPage());
+talkBtn.addEventListener("click", async () => {
+  if (voice.active) return voice.stop();
+  void showOnPage(); // so you can see Tekkie react while you talk
+  await voice.start();
+});
+document.getElementById("say")!.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("say-text") as HTMLInputElement;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  if (!voice.active) await voice.start();
+  voice.sendText(text);
 });
 
 // Reading the screen needs Chrome's "access all sites" permission, which only a click can grant.

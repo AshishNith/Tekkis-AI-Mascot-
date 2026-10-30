@@ -1,114 +1,73 @@
-// Injects Tekkie into every page. The widget itself lives in an extension-origin iframe so the
-// microphone permission is granted once for the extension instead of once per website.
-// This script only owns the iframe's position and size, and forwards the pointer so Tekkie's eyes follow it.
-
+// Puts Tekkie on every page. The widget draws itself in a shadow root right in the page, so strict
+// site rules (Google, banks...) can't block it. The voice conversation, microphone and speaker live in
+// the extension's offscreen document, which this script talks to through RemoteVoiceSession.
+import { mountTekkie } from "../../web/src/widget/TekkieWidget";
 import { runAction } from "./control/dom-actions";
+import { RemoteVoiceSession } from "./remote-voice";
+import { loadSettings, skinById } from "./settings";
 
-const MARGIN = 16;
+// If this script is injected again (e.g. from the popup), the newest copy takes over and older ones go quiet.
+const token = Symbol("tekkie");
+const owner = window as unknown as { __tekkieToken?: symbol };
+owner.__tekkieToken = token;
+const alive = () => owner.__tekkieToken === token && Boolean(chrome.runtime?.id);
+
 const POSITION_KEY = "position";
-const FRAME_URL = chrome.runtime.getURL("widget.html");
-
-let frame: HTMLIFrameElement | undefined;
-let size = { w: 260, h: 320 };
-let pos: { x: number; b: number } | undefined; // left / bottom offsets in px
-
-function clamp() {
-  const x = pos?.x ?? window.innerWidth;
-  const b = pos?.b ?? 0;
-  pos = {
-    x: Math.min(Math.max(MARGIN, x), Math.max(MARGIN, window.innerWidth - size.w - MARGIN)),
-    b: Math.min(Math.max(MARGIN, b), Math.max(MARGIN, window.innerHeight - size.h - MARGIN)),
-  };
-}
-
-function apply() {
-  if (!frame) return;
-  clamp();
-  frame.style.setProperty("left", `${pos!.x}px`, "important");
-  frame.style.setProperty("bottom", `${pos!.b}px`, "important");
-  frame.style.setProperty("width", `${size.w}px`, "important");
-  frame.style.setProperty("height", `${size.h}px`, "important");
-}
+let tekkie: ReturnType<typeof mountTekkie> | undefined;
 
 function finite(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n);
 }
 
-function onFrameMessage(e: MessageEvent) {
-  if (!frame || e.source !== frame.contentWindow) return;
-  const msg = e.data as { tekkie?: boolean; type?: string; dx?: number; dy?: number; w?: number; h?: number };
-  if (!msg?.tekkie) return;
-  if (msg.type === "resize" && finite(msg.w) && finite(msg.h)) {
-    size = { w: Math.min(Math.max(msg.w, 1), 600), h: Math.min(Math.max(msg.h, 1), 800) };
-    apply();
-  } else if (msg.type === "move" && finite(msg.dx) && finite(msg.dy) && pos) {
-    pos = { x: pos.x + msg.dx, b: pos.b - msg.dy };
-    apply();
-  } else if (msg.type === "settle" && pos) {
-    void chrome.storage.local.set({ [POSITION_KEY]: pos });
-  } else if (msg.type === "mic-blocked") {
-    void chrome.runtime.sendMessage({ type: "tekkie:open-mic-setup" });
-  }
-}
-
-let lastPointer: PointerEvent | undefined;
-let pointerQueued = false;
-function onPointerMove(e: PointerEvent) {
-  lastPointer = e;
-  if (pointerQueued) return;
-  pointerQueued = true;
-  requestAnimationFrame(() => {
-    pointerQueued = false;
-    if (!frame || !lastPointer) return;
-    const r = frame.getBoundingClientRect();
-    frame.contentWindow?.postMessage(
-      { tekkie: true, type: "pointer", x: lastPointer.clientX - r.left, y: lastPointer.clientY - r.top },
-      FRAME_URL,
-    );
+async function mount() {
+  if (tekkie || !document.body || !alive()) return;
+  document.querySelectorAll("[data-tekkie]").forEach((old) => old.remove()); // leftovers from an older copy
+  const settings = await loadSettings();
+  if (tekkie || !alive()) return; // mounted (or replaced) while we were reading settings
+  const voice = new RemoteVoiceSession();
+  tekkie = mountTekkie({
+    voice,
+    skin: skinById(settings.skinId),
+    storage: {
+      get: async () => {
+        const saved = (await chrome.storage.local.get(POSITION_KEY))[POSITION_KEY] as { x?: unknown; b?: unknown } | undefined;
+        return finite(saved?.x) && finite(saved?.b) ? { x: saved.x, b: saved.b } : null;
+      },
+      set: (pos) => void chrome.storage.local.set({ [POSITION_KEY]: pos }),
+      clear: () => void chrome.storage.local.remove(POSITION_KEY),
+    },
+    // Say hello on the first page of the browser session, and never in the middle of a conversation.
+    shouldGreet: async () => !(await voice.restored) && (await chrome.runtime.sendMessage({ type: "tekkie:greet" })) === true,
+    onMicBlocked: () => void chrome.runtime.sendMessage({ type: "tekkie:open-mic-setup" }),
   });
 }
 
-async function mount() {
-  if (frame || !document.body) return;
-  const saved = (await chrome.storage.local.get(POSITION_KEY))[POSITION_KEY] as typeof pos;
-  if (finite(saved?.x) && finite(saved?.b)) pos = saved;
-  if (frame) return; // mounted while we were reading storage
-
-  frame = document.createElement("iframe");
-  frame.src = FRAME_URL;
-  frame.allow = "microphone";
-  frame.title = "Tekkie assistant";
-  frame.setAttribute("data-tekkie", "");
-  // The page can't restyle this, and a differing color-scheme would give the iframe an opaque backdrop.
-  const fixed: Record<string, string> = {
-    position: "fixed",
-    border: "0",
-    margin: "0",
-    padding: "0",
-    background: "transparent",
-    "color-scheme": "normal",
-    "z-index": "2147483647",
-  };
-  for (const [k, v] of Object.entries(fixed)) frame.style.setProperty(k, v, "important");
-  apply();
-  document.body.appendChild(frame);
-
-  window.addEventListener("message", onFrameMessage);
-  window.addEventListener("pointermove", onPointerMove, { passive: true });
-  window.addEventListener("resize", apply);
-}
-
 function unmount() {
-  frame?.remove();
-  frame = undefined;
-  window.removeEventListener("message", onFrameMessage);
-  window.removeEventListener("pointermove", onPointerMove);
-  window.removeEventListener("resize", apply);
+  tekkie?.destroy();
+  tekkie = undefined;
 }
 
-// Browser control: the background worker relays the model's tool calls here.
+// After the extension is reloaded or updated, this copy loses its connection: remove Tekkie quietly
+// instead of leaving a dead mascot (and console errors) behind.
+const watchdog = setInterval(() => {
+  if (alive()) return;
+  clearInterval(watchdog);
+  unmount();
+}, 2000);
+
 chrome.runtime.onMessage.addListener((msg: { type?: string; name?: string; args?: Record<string, unknown> }, sender, sendResponse) => {
-  if (sender.id !== chrome.runtime.id || msg?.type !== "tekkie:act") return;
+  if (!alive() || sender.id !== chrome.runtime.id) return;
+  if (msg?.type === "tekkie:show") {
+    // Bring Tekkie to the default corner of this page, even if it was hidden or dragged away.
+    void (async () => {
+      await mount();
+      tekkie?.resetPosition();
+      setTimeout(() => tekkie?.wave(), 300);
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+  if (msg?.type !== "tekkie:act") return;
   try {
     sendResponse({ ok: true, result: runAction(String(msg.name), msg.args ?? {}) });
   } catch (err) {
@@ -120,7 +79,10 @@ chrome.storage.local.get({ enabled: true }).then(({ enabled }) => {
   if (enabled) void mount();
 });
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== "local" || !changes.enabled) return;
-  if (changes.enabled.newValue === false) unmount();
-  else void mount();
+  if (!alive() || area !== "local") return;
+  if (changes.enabled) {
+    if (changes.enabled.newValue === false) unmount();
+    else void mount();
+  }
+  if (changes.skinId) tekkie?.setSkin(skinById(String(changes.skinId.newValue)));
 });

@@ -21,11 +21,28 @@
       #status.ok { color: #1a8a4a; } #status.warn { color: #e0364f; }
       #mic { margin-top: 14px; width: 100%; }
       .wide { width: 100%; }
+      .actions { display: flex; gap: 8px; margin-bottom: 10px; }
+      .actions button { flex: 1; padding: 9px 12px; font-weight: 600; }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button.talk[aria-pressed="true"] { background: #e0364f; border-color: #e0364f; color: #fff; }
+      .caption { min-height: 2.8em; margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+      .say { display: flex; gap: 6px; margin-bottom: 12px; }
+      .say input { flex: 1; }
+      details { border-top: 1px solid var(--border); padding-top: 10px; }
+      summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
       .note { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
     </style>
   </head>
   <body>
     <div class="hero"><canvas id="mascot" aria-label="Tekkie the robot"></canvas><h1>Tekkie</h1></div>
+    <div class="actions">
+      <button id="show" type="button" class="primary">Show Tekkie on this page</button>
+      <button id="talk" type="button" class="talk">Talk</button>
+    </div>
+    <p id="caption" class="caption" role="status" aria-live="polite"></p>
+    <form id="say" class="say"><input id="say-text" type="text" placeholder="Type to Tekkie…" autocomplete="off" aria-label="Message to Tekkie" /><button type="submit">Send</button></form>
+    <details>
+      <summary>Settings</summary>
     <label class="row"><span>Show Tekkie on pages</span><input id="enabled" type="checkbox" /></label>
     <label class="row"><span>Let Tekkie use the page<br /><small>click, type, scroll, open links</small></span><input id="control" type="checkbox" /></label>
     <button id="screen" type="button" class="wide">Let Tekkie see the screen</button>
@@ -36,6 +53,7 @@
     <input id="server" type="text" spellcheck="false" aria-label="Voice server URL" />
     <p id="status" role="status">Checking…</p>
     <button id="mic" type="button">Set up microphone</button>
+    </details>
     <script type="module" src="/src/popup.ts"></script>
   </body>
 </html>

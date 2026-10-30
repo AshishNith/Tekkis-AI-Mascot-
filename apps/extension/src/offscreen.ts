@@ -8,6 +8,7 @@ import { PORT_NAME, type ToUi, type ToVoice } from "./protocol";
 const ports = new Set<chrome.runtime.Port>();
 let session: LiveVoiceSession | undefined;
 let state: VoiceState = "idle";
+let pendingText: string[] = []; // typed before the conversation finished connecting
 let lastCaption: Extract<ToUi, { type: "caption" }> | undefined;
 
 function broadcast(msg: ToUi) {
@@ -35,6 +36,10 @@ async function start() {
   );
   next.on("state", (s) => {
     state = s;
+    if (s === "listening" && pendingText.length) {
+      for (const text of pendingText) next.sendText(text);
+      pendingText = [];
+    }
     if (s === "idle") {
       lastCaption = undefined;
       void chrome.runtime.sendMessage({ type: "tekkie:release" }); // let go of the page's debugger bar
@@ -65,7 +70,10 @@ chrome.runtime.onConnect.addListener((port) => {
       });
     }
     else if (msg.type === "stop") session?.stop();
-    else if (msg.type === "text") session?.sendText(msg.text);
+    else if (msg.type === "text") {
+      if (session?.active && state !== "connecting") session.sendText(msg.text);
+      else pendingText.push(msg.text);
+    }
   });
 });
 

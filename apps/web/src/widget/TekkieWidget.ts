@@ -1,14 +1,16 @@
 import { TekkieCharacter } from "../mascot/TekkieCharacter";
 import { DEFAULT_SKIN, type Skin } from "../mascot/skins";
-import { LiveVoiceSession, type VoiceController, type VoiceState } from "../voice/LiveVoiceSession";
+import type { VoiceController, VoiceState } from "../voice/LiveVoiceSession";
 import { WIDGET_CSS } from "./styles";
 
 export interface TekkieOptions {
-  /** Where the Tekkie server lives. Empty = same origin. */
-  apiBase?: string;
   skin?: Skin;
-  /** Replaces the built-in voice session (the extension runs voice in a background document). */
-  voice?: VoiceController;
+  /** The voice conversation this widget controls (in-page, or a remote one in the extension). */
+  voice: VoiceController;
+  /** Where the dragged position is kept. Defaults to this site's localStorage. */
+  storage?: { get(): Promise<{ x: number; b: number } | null>; set(pos: { x: number; b: number }): void; clear(): void };
+  /** Called when the browser blocks the microphone. */
+  onMicBlocked?: () => void;
   /** Asked once at start-up: return false to skip the wave and greeting (e.g. a page reload mid-conversation). */
   shouldGreet?: () => Promise<boolean>;
   /**
@@ -36,7 +38,7 @@ const POSITION_KEY = "tekkie:position:v1";
 const MARGIN = 16;
 
 /** Mounts the floating Tekkie mascot on the page. Returns controls for the host page. */
-export function mountTekkie(options: TekkieOptions = {}) {
+export function mountTekkie(options: TekkieOptions) {
   const host = document.createElement("div");
   host.setAttribute("data-tekkie", "");
   const root = host.attachShadow({ mode: "open" });
@@ -67,7 +69,7 @@ export function mountTekkie(options: TekkieOptions = {}) {
 
   const character = new TekkieCharacter($<HTMLCanvasElement>("canvas"));
   character.setSkin(options.skin ?? DEFAULT_SKIN);
-  const voice: VoiceController = options.voice ?? new LiveVoiceSession(options.apiBase ?? "");
+  const voice: VoiceController = options.voice;
 
   // --- Speech bubble -------------------------------------------------------
   let hideTimer = 0;
@@ -92,7 +94,7 @@ export function mountTekkie(options: TekkieOptions = {}) {
   });
   voice.on("error", (message) => {
     say(message, { error: true, you: "" });
-    if (frame && message.startsWith("Microphone access")) frame.micBlocked();
+    if (message.startsWith("Microphone access")) (options.onMicBlocked ?? frame?.micBlocked)?.();
   });
   voice.on("state", (state) => {
     character.setState(state);
@@ -143,6 +145,9 @@ export function mountTekkie(options: TekkieOptions = {}) {
     box.style.width = "260px";
     box.classList.add("embedded");
     new ResizeObserver(() => frame.resize(box.offsetWidth, box.offsetHeight)).observe(box);
+  } else if (options.storage) {
+    place(window.innerWidth, 0); // bottom-right until the saved spot loads
+    void options.storage.get().then((saved) => saved && place(saved.x, saved.b));
   } else {
     try {
       const saved = JSON.parse(localStorage.getItem(POSITION_KEY) ?? "null");
@@ -180,6 +185,8 @@ export function mountTekkie(options: TekkieOptions = {}) {
     if (!drag) return;
     if (drag.moved && frame) {
       frame.settle();
+    } else if (drag.moved && options.storage) {
+      options.storage.set(pos);
     } else if (drag.moved) {
       try {
         localStorage.setItem(POSITION_KEY, JSON.stringify(pos));
@@ -225,6 +232,12 @@ export function mountTekkie(options: TekkieOptions = {}) {
     /** For the extension: the pointer position (in this frame's coordinates) when it is outside the frame. */
     lookAtPoint,
     setSkin: (skin: Skin) => character.setSkin(skin),
+    wave: () => character.wave(),
+    /** Brings Tekkie back to the default corner. */
+    resetPosition() {
+      options.storage?.clear();
+      place(window.innerWidth, 0);
+    },
     start: () => voice.start(),
     stop: () => voice.stop(),
     destroy() {

@@ -279,6 +279,12 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; create?: boolean; na
       sendResponse(await hasOffscreen());
     })();
     return true;
+  } else if (msg?.type === "tekkie:greet") {
+    void chrome.storage.session.get("greeted").then(async ({ greeted }) => {
+      await chrome.storage.session.set({ greeted: true });
+      sendResponse(!greeted);
+    });
+    return true;
   } else if (msg?.type === "tekkie:release") {
     releaseAllDebuggers();
   } else if (msg?.type === "tekkie:screenshot") {
