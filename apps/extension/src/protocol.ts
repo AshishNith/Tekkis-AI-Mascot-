@@ -10,7 +10,7 @@ export type ToUi =
   | { type: "state"; state: VoiceState }
   | { type: "caption"; who: "user" | "tekkie"; text: string; final: boolean }
   | { type: "error"; message: string }
-  | { type: "levels"; out: number; in: number }
+  | { type: "levels"; out: number; in: number; wide: number }
   | { type: "emote"; kind: string }
   | { type: "plan"; plan: TaskPlan | null }
   | { type: "history"; lines: HistoryLine[] };

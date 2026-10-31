@@ -1,4 +1,5 @@
-import { DEFAULT_SKIN, SKINS, customSkin, type Skin } from "../../web/src/mascot/skins";
+import { ACCESSORIES, DEFAULT_SKIN, SKINS, customSkin, type Accessory, type Skin } from "../../web/src/mascot/skins";
+import type { FormKind } from "../../web/src/mascot/forms/common";
 
 export interface CustomColors {
   body: number;
@@ -38,6 +39,22 @@ export interface Settings {
   customColors: CustomColors;
   /** Per-website rules, by hostname. */
   sites: Record<string, SiteRules>;
+  /** Which body Tekkie wears: robot, buddy (humanoid), critter, or a custom .glb. */
+  form: FormKind;
+  /** A hat or outfit on top of the skin ("" = whatever the skin comes with). */
+  accessory: Accessory | "";
+  /** Little chirps for feelings and greetings. */
+  sounds: boolean;
+  /** Idle fidgets (looking around, stretching, yawning). */
+  fidgets: boolean;
+}
+
+/** A custom model is big, so it lives under its own key, not in the settings object. */
+export const MODEL_KEY = "customModel";
+export interface StoredModel {
+  name: string;
+  /** base64 of the .glb bytes */
+  data: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -55,7 +72,33 @@ export const DEFAULT_SETTINGS: Settings = {
   corner: "right",
   customColors: { body: 0x7c5cff, visor: 0x16123a, glow: 0x7ff6ff, sneaker: 0xff4f81 },
   sites: {},
+  form: "robot",
+  accessory: "",
+  sounds: true,
+  fidgets: true,
 };
+
+export function base64ToBytes(b64: string): ArrayBuffer {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+export function bytesToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+/** Daily streak: how many days in a row the user has opened the browser with Tekkie around. */
+export interface Streak {
+  days: number;
+  /** YYYY-MM-DD of the last day counted. */
+  last: string;
+  best: number;
+}
 
 export async function loadSettings(): Promise<Settings> {
   const stored = await chrome.storage.local.get({ ...DEFAULT_SETTINGS });
@@ -75,6 +118,12 @@ export function resolveSkin(settings: Settings, level: number): Skin {
   if (settings.skinId === "custom") return customSkin(settings.customColors);
   const skin = skinById(settings.skinId);
   return (skin.unlockLevel ?? 1) <= level ? skin : DEFAULT_SKIN;
+}
+
+/** The hat to wear: the chosen one if it is unlocked at this bond level, else whatever the skin has. */
+export function resolveAccessory(settings: Settings, level: number): Accessory | null {
+  const chosen = ACCESSORIES.find((a) => a.id === settings.accessory);
+  return chosen && (chosen.unlockLevel ?? 1) <= level ? chosen.id : null;
 }
 
 export function siteRules(settings: Settings, hostname: string): SiteRules {

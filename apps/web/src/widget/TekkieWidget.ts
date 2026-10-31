@@ -1,7 +1,8 @@
-import { EMOTES, TekkieCharacter, type Emote } from "../mascot/TekkieCharacter";
-import { DEFAULT_SKIN, SKINS, type Skin } from "../mascot/skins";
+import { EMOTES, FORMS, TekkieCharacter, type Emote, type FormKind } from "../mascot/TekkieCharacter";
+import { DEFAULT_SKIN, SKINS, type Accessory, type Skin } from "../mascot/skins";
+import { Chirps } from "../mascot/sounds";
 import type { HistoryLine, TaskPlan, VoiceController, VoiceState } from "../voice/LiveVoiceSession";
-import { applyCare, decay, levelOf, newCare, XP_PER_LEVEL, type CareAction, type CareState } from "./care";
+import { applyCare, decay, levelOf, newCare, touchStreak, XP_PER_LEVEL, type CareAction, type CareState } from "./care";
 import { GAMES, startGame, type GameId } from "./games";
 import { WIDGET_CSS } from "./styles";
 
@@ -14,6 +15,16 @@ export interface Store<T> {
 
 export interface TekkieOptions {
   skin?: Skin;
+  /** Which body to wear (robot by default). "glb" waits for loadModel(). */
+  form?: FormKind;
+  /** A hat or outfit on top of the skin. */
+  accessory?: Accessory | null;
+  /** Little chirps for feelings (on by default). */
+  sounds?: boolean;
+  /** Idle fidgets: looking around, stretching, yawning (on by default). */
+  fidgets?: boolean;
+  /** The user picked another body from Tekkie's hover menu (persist it). */
+  onFormChange?: (form: FormKind) => void;
   /** The voice conversation this widget controls (in-page, or a remote one in the extension). */
   voice: VoiceController;
   /** Where the dragged position is kept. Defaults to this site's localStorage. */
@@ -86,7 +97,7 @@ export function mountTekkie(options: TekkieOptions) {
           <header><span class="panel-title"></span><button type="button" class="panel-close" aria-label="Close">×</button></header>
           <div class="panel-body"></div>
         </section>
-        <div class="bubble" aria-live="polite"><div class="you"></div><div class="said"></div></div>
+        <div class="bubble" aria-live="polite"><div class="you"></div><div class="said"></div><div class="act"></div></div>
         <div class="stagewrap">
           <div class="stage" title="Drag me · tap to talk · rub me to pet · hold Alt+T to talk"><canvas></canvas></div>
           <div class="zz" aria-hidden="true">z<span>z</span><span>z</span></div>
@@ -94,7 +105,7 @@ export function mountTekkie(options: TekkieOptions) {
             ${chip("talk", "🎙", "Talk")}${chip("screen", "👀", "What's on my screen?")}${chip("history", "📜", "Chat history")}${chip("games", "🎮", "Play a game")}
           </div>
           <div class="tray right" role="menu" aria-label="Tekkie behaviour">
-            ${chip("care", "🍪", "Look after Tekkie")}${chip("dance", "💃", "Dance!")}${chip("follow", "🐾", "Follow my cursor", false)}${chip("wander", "🚶", "Walk and climb on its own", true)}
+            ${chip("care", "🍪", "Look after Tekkie")}${chip("dance", "💃", "Dance!")}${chip("look", "🎭", "Change body")}${chip("follow", "🐾", "Follow my cursor", false)}${chip("wander", "🚶", "Walk and climb on its own", true)}
           </div>
         </div>
         <div class="controls">
@@ -115,6 +126,7 @@ export function mountTekkie(options: TekkieOptions) {
   const bubble = $<HTMLDivElement>(".bubble");
   const youEl = $<HTMLDivElement>(".you");
   const saidEl = $<HTMLDivElement>(".said");
+  const actEl = $<HTMLDivElement>(".act");
   const stage = $<HTMLDivElement>(".stage");
   const stageWrap = $<HTMLDivElement>(".stagewrap");
   const talkBtn = $<HTMLButtonElement>(".talk");
@@ -122,8 +134,20 @@ export function mountTekkie(options: TekkieOptions) {
   const typeForm = $<HTMLFormElement>("form.type");
   const typeInput = $<HTMLInputElement>("form.type input");
 
-  const character = new TekkieCharacter($<HTMLCanvasElement>("canvas"));
+  const character = new TekkieCharacter($<HTMLCanvasElement>("canvas"), options.form && options.form !== "glb" ? options.form : "robot");
   character.setSkin(options.skin ?? DEFAULT_SKIN);
+  character.setAccessory(options.accessory ?? null);
+  character.fidgets = options.fidgets !== false;
+
+  // Sounds: tiny synth chirps, unlocked by the first thing the user does on the page.
+  const chirps = new Chirps();
+  chirps.enabled = options.sounds !== false;
+  const unlockAudio = () => chirps.unlock();
+  window.addEventListener("pointerdown", unlockAudio, { passive: true });
+  window.addEventListener("keydown", unlockAudio, { passive: true });
+  character.onEmote = (kind, idle) => {
+    if (!idle || kind === "yawn") chirps.play(kind);
+  };
   const voice: VoiceController = options.voice;
   const positionStore = options.storage ?? localStore<{ x: number; b: number }>("tekkie:position:v1");
   const careStore = options.care ?? localStore<CareState>("tekkie:care:v1");
@@ -135,9 +159,21 @@ export function mountTekkie(options: TekkieOptions) {
 
   // --- Speech bubble -------------------------------------------------------
   let hideTimer = 0;
-  function say(text: string, opts: { you?: string; error?: boolean; sticky?: boolean } = {}) {
+  function say(text: string, opts: { you?: string; error?: boolean; sticky?: boolean; action?: { label: string; run: () => void } } = {}) {
     if (opts.you !== undefined) youEl.textContent = opts.you ? `You: ${opts.you}` : "";
     saidEl.textContent = text;
+    actEl.innerHTML = "";
+    if (opts.action) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "small";
+      b.textContent = opts.action.label;
+      b.addEventListener("click", () => {
+        bubble.classList.remove("show");
+        opts.action!.run();
+      });
+      actEl.appendChild(b);
+    }
     bubble.classList.toggle("error", Boolean(opts.error));
     bubble.classList.add("show");
     keepOnScreen(bubble);
@@ -303,17 +339,80 @@ export function mountTekkie(options: TekkieOptions) {
     drag = null;
   });
 
-  // Tekkie keeps an eye on the pointer anywhere on the page.
+  // Tekkie keeps an eye on the pointer anywhere on the page, or glances at something for a moment.
   let pointer = { x: -1, y: -1 };
+  let glance: { x: number; y: number; until: number } | null = null;
+  function lookAtPoint(x: number, y: number) {
+    const r = stage.getBoundingClientRect();
+    character.lookAt((x - (r.left + r.width / 2)) / 500, -(y - (r.top + r.height * 0.4)) / 400);
+  }
+  function glanceAt(el: Element, seconds = 2.5) {
+    const r = el.getBoundingClientRect();
+    if (!r.width) return;
+    glance = { x: r.left + Math.min(r.width / 2, 120), y: r.top + r.height / 2, until: performance.now() + seconds * 1000 };
+    lookAtPoint(glance.x, glance.y);
+  }
   window.addEventListener("pointermove", (e) => {
     pointer = { x: e.clientX, y: e.clientY };
-    const r = stage.getBoundingClientRect();
-    character.lookAt((e.clientX - (r.left + r.width / 2)) / 500, -(e.clientY - (r.top + r.height * 0.4)) / 400);
+    if (glance && performance.now() < glance.until) {
+      if (Math.hypot(e.clientX - glance.x, e.clientY - glance.y) < 160) return; // still near what it's looking at
+      glance = null;
+    }
+    lookAtPoint(e.clientX, e.clientY);
     wake(); // the user is around: no napping
   });
   // Typing and scrolling count as being around too.
   window.addEventListener("keydown", wake, { passive: true });
   window.addEventListener("scroll", wake, { passive: true });
+  // Watches what you're typing into (politely, from a distance).
+  window.addEventListener("focusin", (e) => {
+    const el = e.target as Element | null;
+    if (!el || el.closest("[data-tekkie]") || host.contains(el)) return;
+    if (el.matches("input, textarea, select, [contenteditable]")) glanceAt(el, 4);
+  });
+  // A fast scroll makes Tekkie grab its hat.
+  let lastScroll = { y: window.scrollY, at: performance.now() };
+  let scrollCooldown = 0;
+  window.addEventListener(
+    "scroll",
+    () => {
+      const now = performance.now();
+      const dy = Math.abs(window.scrollY - lastScroll.y);
+      if (now - lastScroll.at < 300 && dy > 1400 && now > scrollCooldown) {
+        scrollCooldown = now + 15_000;
+        character.emote("surprised", true);
+      }
+      lastScroll = { y: window.scrollY, at: now };
+    },
+    { passive: true },
+  );
+  // Highlight a chunk of text and Tekkie offers to help with it.
+  let selectionTimer = 0;
+  let selectionCooldown = 0;
+  document.addEventListener("selectionchange", () => {
+    clearTimeout(selectionTimer);
+    selectionTimer = window.setTimeout(() => {
+      const sel = getSelection();
+      const text = sel?.toString().trim() ?? "";
+      if (text.length < 120 || performance.now() < selectionCooldown || voice.active) return;
+      const node = sel?.anchorNode;
+      const el = node instanceof Element ? node : node?.parentElement;
+      if (!el || el.closest("[data-tekkie]")) return;
+      selectionCooldown = performance.now() + 30_000;
+      glanceAt(el, 3);
+      character.emote("think", true);
+      say("Want me to go through what you've highlighted?", {
+        you: "",
+        action: {
+          label: "Summarize it",
+          run: async () => {
+            if (!voice.active) await voice.start();
+            voice.sendText("Summarize the text I've highlighted on this page, briefly.");
+          },
+        },
+      });
+    }, 700);
+  });
 
   // Rubbing the pointer back and forth over Tekkie pets it.
   let rub = { dir: 0, flips: 0, since: 0, lastX: 0 };
@@ -406,6 +505,15 @@ export function mountTekkie(options: TekkieOptions) {
       case "dance":
         character.dance();
         break;
+      case "look": {
+        const ids = FORMS.map((f) => f.id);
+        const next = ids[(Math.max(0, ids.indexOf(character.currentForm)) + 1) % ids.length];
+        character.setForm(next);
+        chirps.play("pop");
+        say(`Ta-da! I'm a ${FORMS.find((f) => f.id === next)!.name.toLowerCase()} now.`);
+        options.onFormChange?.(next);
+        break;
+      }
       case "follow":
         prefs.follow = !prefs.follow;
         if (prefs.follow) leavePerch();
@@ -513,8 +621,24 @@ export function mountTekkie(options: TekkieOptions) {
 
   // --- Care: food, mood, energy and bond level ------------------------------------------------
   async function loadCare() {
-    return decay((await careStore.get()) ?? newCare());
+    const s = decay((await careStore.get()) ?? newCare());
+    character.setMood(s);
+    return s;
   }
+  // Day streak: counted once per day, the first time Tekkie shows up.
+  void (async () => {
+    const before = await loadCare();
+    const { state, change } = touchStreak(before);
+    if (change === "same") return;
+    careStore.set(state);
+    if (change === "continued" && (state.streak ?? 0) >= 2) {
+      setTimeout(() => {
+        character.emote("celebrate");
+        chirps.play("level");
+        say(`${state.streak} days in a row! 🔥 Thanks for coming back.`);
+      }, 4000);
+    }
+  })();
   const unlockedAt = (level: number) => SKINS.filter((s) => s.unlockLevel === level);
 
   /** Applies a care action, saves it, and celebrates level-ups. Returns false if Tekkie refused. */
@@ -530,6 +654,7 @@ export function mountTekkie(options: TekkieOptions) {
     const level = levelOf(state.xp);
     if (level > levelOf(before.xp)) {
       character.emote("celebrate");
+      chirps.play("level");
       const skins = unlockedAt(level).map((s) => s.name);
       say(`Level ${level}! ${skins.length ? `I unlocked the ${skins.join(" & ")} look. Pick it in my settings!` : "We're best buddies!"}`);
     }
@@ -546,6 +671,7 @@ export function mountTekkie(options: TekkieOptions) {
       `<div class="stat ${cls}"><span>${label}</span><div class="meter"><span style="width:${Math.round(v)}%"></span></div></div>`;
     panelBody.innerHTML = `
       <p class="level">Bond level <strong>${level}</strong> · ${into}/${XP_PER_LEVEL}${next ? ` · next unlock: ${next.name} (level ${next.unlockLevel})` : ""}</p>
+      <p class="streak">🔥 ${s.streak ?? 1}-day streak${(s.bestStreak ?? 0) > (s.streak ?? 1) ? ` · best ${s.bestStreak}` : ""}</p>
       ${bar("🍪 Food", s.food, "food")}${bar("😊 Mood", s.mood, "mood")}${bar("⚡ Energy", s.energy, "energy")}
       <div class="care-actions">
         <button type="button" data-care="feed">🍪 Feed</button><button type="button" data-care="play">⚽ Play</button>
@@ -810,7 +936,7 @@ export function mountTekkie(options: TekkieOptions) {
   const loop = (now: number) => {
     const dt = (now - last) / 1000;
     behave(Math.min(dt, 0.05));
-    character.setLevels(voice.outputLevel, voice.inputLevel);
+    character.setLevels(voice.outputLevel, voice.inputLevel, voice.outputShape ?? 0.5);
     character.update(dt);
     last = now;
     raf = requestAnimationFrame(loop);
@@ -820,11 +946,21 @@ export function mountTekkie(options: TekkieOptions) {
   setTimeout(async () => {
     if (options.shouldGreet && !(await options.shouldGreet())) return;
     character.wave();
+    chirps.play("hello");
     say("Hi, I'm Tekkie! Tap me or press Talk to chat.");
   }, 600);
 
   return {
     setSkin: (skin: Skin) => character.setSkin(skin),
+    setForm: (form: FormKind) => character.setForm(form),
+    setAccessory: (a: Accessory | null) => character.setAccessory(a),
+    loadModel: (bytes: ArrayBuffer) => character.loadModel(bytes),
+    setSounds(on: boolean) {
+      chirps.enabled = on;
+    },
+    setFidgets(on: boolean) {
+      character.fidgets = on;
+    },
     wave: () => character.wave(),
     emote: (kind: Emote) => character.emote(kind),
     say: (text: string) => say(text),

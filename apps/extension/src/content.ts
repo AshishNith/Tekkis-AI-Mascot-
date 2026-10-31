@@ -6,7 +6,7 @@ import { decay, levelOf, newCare, type CareState } from "../../web/src/widget/ca
 import { mountTekkie } from "../../web/src/widget/TekkieWidget";
 import { runAction } from "./control/dom-actions";
 import { RemoteVoiceSession } from "./remote-voice";
-import { loadSettings, resolveSkin, siteRules, type Settings } from "./settings";
+import { base64ToBytes, loadSettings, MODEL_KEY, resolveAccessory, resolveSkin, siteRules, type Settings, type StoredModel } from "./settings";
 
 // If this script is injected again (e.g. from the popup), the newest copy takes over and older ones go quiet.
 const token = Symbol("tekkie");
@@ -41,6 +41,11 @@ async function mount() {
   tekkie = mountTekkie({
     voice,
     skin: resolveSkin(settings, level),
+    form: settings.form,
+    accessory: resolveAccessory(settings, level),
+    sounds: settings.sounds,
+    fidgets: settings.fidgets,
+    onFormChange: (form) => void chrome.storage.local.set({ form }),
     scale: settings.scale,
     corner: settings.corner,
     storage: {
@@ -61,6 +66,19 @@ async function mount() {
     shouldGreet: async () => !(await voice.restored) && (await chrome.runtime.sendMessage({ type: "tekkie:greet" })) === true,
     onMicBlocked: () => void chrome.runtime.sendMessage({ type: "tekkie:open-mic-setup" }),
   });
+  if (settings.form === "glb") void wearCustomModel();
+}
+
+/** Loads the user's own .glb from storage onto Tekkie (falls back to the robot if there is none or it is broken). */
+async function wearCustomModel() {
+  const stored = (await chrome.storage.local.get(MODEL_KEY))[MODEL_KEY] as StoredModel | undefined;
+  if (!tekkie) return;
+  if (!stored?.data) return tekkie.setForm("robot");
+  try {
+    await tekkie.loadModel(base64ToBytes(stored.data));
+  } catch {
+    tekkie.setForm("robot");
+  }
 }
 
 function unmount() {
@@ -99,11 +117,13 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; name?: string; text?
     return;
   }
   if (msg?.type !== "tekkie:act") return;
-  try {
-    sendResponse({ ok: true, result: runAction(String(msg.name), msg.args ?? {}) });
-  } catch (err) {
-    sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) });
-  }
+  Promise.resolve()
+    .then(() => runAction(String(msg.name), msg.args ?? {}))
+    .then(
+      (result) => sendResponse({ ok: true, result }),
+      (err: unknown) => sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }),
+    );
+  return true;
 });
 
 void mount();
@@ -121,6 +141,14 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     tekkie.setSkin(resolveSkin(await loadSettings(), await bondLevel()));
   }
   if (changes.scale && finite(changes.scale.newValue)) tekkie.setScale(changes.scale.newValue);
+  if (changes.form || changes[MODEL_KEY]) {
+    const form = (await loadSettings()).form;
+    if (form === "glb") void wearCustomModel();
+    else tekkie.setForm(form);
+  }
+  if (changes.accessory || levelChanged) tekkie.setAccessory(resolveAccessory(await loadSettings(), await bondLevel()));
+  if (changes.sounds) tekkie.setSounds(changes.sounds.newValue !== false);
+  if (changes.fidgets) tekkie.setFidgets(changes.fidgets.newValue !== false);
   if (changes.corner) {
     tekkie.setCorner(changes.corner.newValue === "left" ? "left" : "right");
     tekkie.resetPosition();

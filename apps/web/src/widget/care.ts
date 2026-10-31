@@ -8,6 +8,11 @@ export interface CareState {
   xp: number;
   /** When the numbers above were last brought up to date (ms). */
   at: number;
+  /** Days in a row Tekkie has been visited. */
+  streak?: number;
+  /** YYYY-MM-DD (local) of the last day counted. */
+  streakDay?: string;
+  bestStreak?: number;
 }
 
 export const XP_PER_LEVEL = 50;
@@ -67,4 +72,27 @@ export function applyCare(s: CareState, action: CareAction): { state: CareState;
       break;
   }
   return { state: n };
+}
+
+const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Counts today toward the daily streak. A day in a row earns a few bond points. */
+export function touchStreak(s: CareState, now = new Date()): { state: CareState; change: "same" | "first" | "continued" | "reset" } {
+  const today = dayKey(now);
+  if (s.streakDay === today) return { state: s, change: "same" };
+  const yesterday = dayKey(new Date(now.getTime() - 86_400_000));
+  const n = { ...s, streakDay: today };
+  if (!s.streakDay) {
+    n.streak = 1;
+    n.bestStreak = Math.max(1, s.bestStreak ?? 0);
+    return { state: n, change: "first" };
+  }
+  if (s.streakDay === yesterday) {
+    n.streak = (s.streak ?? 0) + 1;
+    n.bestStreak = Math.max(n.streak, s.bestStreak ?? 0);
+    n.xp += 3;
+    return { state: n, change: "continued" };
+  }
+  n.streak = 1;
+  return { state: n, change: "reset" };
 }

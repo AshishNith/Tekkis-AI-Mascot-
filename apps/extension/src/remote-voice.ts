@@ -49,6 +49,10 @@ export class RemoteVoiceSession implements VoiceController {
   get inputLevel() {
     return this.mic;
   }
+  private wide = 0.5;
+  get outputShape() {
+    return this.wide;
+  }
 
   private connect() {
     if (this.port) return;
@@ -67,6 +71,7 @@ export class RemoteVoiceSession implements VoiceController {
       else if (msg.type === "levels") {
         this.out = msg.out;
         this.mic = msg.in;
+        this.wide = msg.wide ?? 0.5;
       }
     });
     port.onDisconnect.addListener(() => {

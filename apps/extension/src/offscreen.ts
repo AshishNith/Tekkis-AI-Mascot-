@@ -158,7 +158,7 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; text?: string; on?: 
 // Mouth and mic levels drive Tekkie's lip sync in whichever tab you're looking at.
 setInterval(() => {
   if (session && ports.size && session.active) {
-    broadcast({ type: "levels", out: session.outputLevel, in: session.inputLevel });
+    broadcast({ type: "levels", out: session.outputLevel, in: session.inputLevel, wide: session.outputShape });
   }
 }, 50);
 

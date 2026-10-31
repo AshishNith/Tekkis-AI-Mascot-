@@ -108,6 +108,27 @@ export class PcmPlayer {
     return Math.sqrt(sum / this.levelBuf.length);
   }
 
+  private freqBuf = new Uint8Array(256);
+
+  /**
+   * Rough mouth shape from the spectrum: 0 = round "oh/oo" (energy down low), 1 = wide "ee/ah"
+   * (energy up high). 0.5 when nothing is playing.
+   */
+  shape(): number {
+    if (!this.isPlaying) return 0.5;
+    this.analyser.getByteFrequencyData(this.freqBuf);
+    // 24 kHz / 512 bins = ~47 Hz per bin: 100–1000 Hz vs 1000–4000 Hz.
+    let low = 0;
+    let high = 0;
+    for (let i = 2; i < 22; i++) low += this.freqBuf[i];
+    for (let i = 22; i < 86; i++) high += this.freqBuf[i];
+    low /= 20;
+    high /= 64;
+    if (low + high < 8) return 0.5;
+    const ratio = high / (low + high);
+    return Math.min(1, Math.max(0, (ratio - 0.2) / 0.45));
+  }
+
   close() {
     this.clear();
     void this.ctx.close();

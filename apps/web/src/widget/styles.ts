@@ -72,6 +72,16 @@ export const WIDGET_CSS = `
 .you:empty { display: none; }
 .said { max-height: 7.2em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; }
 .bubble.error .said { color: var(--tk-danger); }
+.bubble .act:empty { display: none; }
+.bubble .act { margin-top: 8px; display: flex; justify-content: flex-end; }
+.memory { display: grid; grid-template-columns: repeat(4, 48px); gap: 6px; justify-content: center; }
+.mem-card { width: 48px; height: 48px; padding: 0; justify-content: center; font-size: 22px; border-radius: 10px; box-shadow: none; background: rgba(124, 92, 255, 0.18); }
+.mem-card.up { background: var(--tk-surface); }
+.mem-card.done { background: rgba(26, 154, 82, 0.2); opacity: 0.8; }
+.game-q { text-align: center; font-size: 22px; font-weight: 700; margin: 8px 0; }
+.game-form { display: flex; gap: 6px; justify-content: center; }
+.game-form input { width: 110px; }
+.streak { margin: -6px 0 8px; color: var(--tk-muted); }
 .stagewrap { position: relative; width: 210px; }
 .tray {
   position: absolute;
@@ -101,6 +111,7 @@ button.chip {
 .stagewrap.open .chip:nth-child(2) { transition-delay: 0.04s; }
 .stagewrap.open .chip:nth-child(3) { transition-delay: 0.08s; }
 .stagewrap.open .chip:nth-child(4) { transition-delay: 0.12s; }
+.stagewrap.open .chip:nth-child(5) { transition-delay: 0.16s; }
 button.chip.on { outline: 2px solid var(--tk-accent); }
 .stagewrap.open .chip:hover { transform: scale(1.14); }
 button.chip[aria-pressed="true"], button.chip.live { background: var(--tk-accent); border-color: transparent; }

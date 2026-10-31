@@ -16,6 +16,8 @@ export const GAMES = [
   { id: "rps", name: "Rock paper scissors", icon: "✊" },
   { id: "ttt", name: "Tic-tac-toe", icon: "⭕" },
   { id: "catch", name: "Catch me!", icon: "🏃" },
+  { id: "memory", name: "Memory match", icon: "🧠" },
+  { id: "math", name: "Quick maths", icon: "➕" },
 ] as const;
 
 export type GameId = (typeof GAMES)[number]["id"];
@@ -23,7 +25,110 @@ export type GameId = (typeof GAMES)[number]["id"];
 export function startGame(id: GameId, host: GameHost) {
   if (id === "rps") rockPaperScissors(host);
   else if (id === "ttt") ticTacToe(host);
+  else if (id === "memory") memoryMatch(host);
+  else if (id === "math") quickMaths(host);
   else catchMe(host);
+}
+
+function memoryMatch(host: GameHost) {
+  const faces = ["🍪", "👟", "🎧", "🚀", "🎈", "🌟"];
+  const cards = [...faces, ...faces].sort(() => Math.random() - 0.5);
+  let open: number[] = [];
+  let matched = 0;
+  let moves = 0;
+  let busy = false;
+  host.el.innerHTML = `<p class="game-msg">Find the pairs!</p><div class="memory">${cards.map((_, i) => `<button type="button" class="mem-card" data-i="${i}" aria-label="Card ${i + 1}"></button>`).join("")}</div>`;
+  const msg = host.el.querySelector(".game-msg")!;
+  const btns = [...host.el.querySelectorAll<HTMLButtonElement>(".mem-card")];
+  btns.forEach((b, i) =>
+    b.addEventListener("click", () => {
+      if (busy || open.includes(i) || b.classList.contains("done")) return;
+      b.textContent = cards[i];
+      b.classList.add("up");
+      open.push(i);
+      if (open.length < 2) return;
+      moves++;
+      const [a, c] = open;
+      if (cards[a] === cards[c]) {
+        btns[a].classList.add("done");
+        btns[c].classList.add("done");
+        matched++;
+        open = [];
+        if (matched === faces.length) {
+          msg.textContent = `All pairs in ${moves} moves!`;
+          host.emote("celebrate");
+          host.reward();
+          host.say(moves <= 9 ? "Wow, what a memory!" : "Nice one! Again?");
+          setTimeout(() => memoryMatch(host), 3000);
+        } else host.emote(Math.random() < 0.5 ? "nod" : "surprised");
+      } else {
+        busy = true;
+        setTimeout(() => {
+          for (const k of open) {
+            btns[k].textContent = "";
+            btns[k].classList.remove("up");
+          }
+          open = [];
+          busy = false;
+        }, 700);
+      }
+      msg.textContent = `${matched}/${faces.length} pairs · ${moves} moves`;
+    }),
+  );
+}
+
+function quickMaths(host: GameHost) {
+  const total = 6;
+  let n = 0;
+  let right = 0;
+  let answer = 0;
+  let started = 0;
+  host.el.innerHTML = `<p class="game-msg">Six sums, as fast as you can!</p><p class="game-q"></p><form class="game-form"><input type="text" inputmode="numeric" aria-label="Your answer" /><button type="submit">Go</button></form>`;
+  const msg = host.el.querySelector(".game-msg")!;
+  const q = host.el.querySelector(".game-q")!;
+  const form = host.el.querySelector<HTMLFormElement>(".game-form")!;
+  const input = form.querySelector("input")!;
+  const ask = () => {
+    const a = 2 + Math.floor(Math.random() * 12);
+    const b = 2 + Math.floor(Math.random() * 12);
+    const op = ["+", "−", "×"][Math.floor(Math.random() * 3)];
+    answer = op === "+" ? a + b : op === "−" ? Math.abs(a - b) : a * b;
+    q.textContent = `${Math.max(a, b)} ${op} ${Math.min(a, b)} = ?`;
+    input.value = "";
+    input.focus();
+  };
+  started = performance.now();
+  ask();
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (Number(input.value) === answer) {
+      right++;
+      host.emote("nod");
+    } else {
+      host.emote("shake");
+      host.say(`It was ${answer}!`);
+    }
+    n++;
+    if (n < total) {
+      msg.textContent = `${right}/${n} right`;
+      ask();
+      return;
+    }
+    const secs = Math.round((performance.now() - started) / 100) / 10;
+    msg.textContent = `${right}/${total} right in ${secs}s`;
+    q.textContent = right === total ? "Perfect!" : right >= 4 ? "Nice!" : "Practice makes perfect.";
+    form.remove();
+    if (right >= 4) {
+      host.emote("celebrate");
+      host.reward();
+    }
+    const again = document.createElement("button");
+    again.type = "button";
+    again.className = "game-start";
+    again.textContent = "Play again";
+    again.addEventListener("click", () => quickMaths(host));
+    host.el.appendChild(again);
+  });
 }
 
 function rockPaperScissors(host: GameHost) {

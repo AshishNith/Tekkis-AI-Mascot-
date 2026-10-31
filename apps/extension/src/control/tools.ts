@@ -4,7 +4,85 @@ import type { FunctionDeclaration } from "@google/genai";
 export const BROWSER_TOOLS: FunctionDeclaration[] = [
   {
     name: "get_page_text",
-    description: "Get the readable text of the current page (the main article), to summarize, explain, translate or read it aloud.",
+    description:
+      "Get the readable text of the current page (the main article), to summarize, explain, translate or read it aloud. Long pages come in parts: the result gives nextOffset when there is more.",
+    parametersJsonSchema: { type: "object", properties: { offset: { type: "integer", description: "Start from this character (from a previous nextOffset)." } } },
+  },
+  {
+    name: "find_on_page",
+    description:
+      "Search the page for words: finds the link, button, field, heading or line of text that contains them, anywhere on the page (not just what read_page listed). Returns ids you can click or type into. Use it when the user names something ('click Sign in', 'find the price', 'where is the download button') or when read_page didn't show what you need.",
+    parametersJsonSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+  },
+  {
+    name: "dismiss_popups",
+    description:
+      "Close whatever is in the way: cookie banners, newsletter or sign-in pop-ups, consent dialogs. Picks the most private option (reject / close) before accept. Call it when a page is covered by an overlay, a click doesn't land, or the page asks for cookie consent.",
+  },
+  {
+    name: "wait_for",
+    description: "Wait for the page to catch up: a few seconds, or until some text appears (e.g. after a search or a click that loads results).",
+    parametersJsonSchema: {
+      type: "object",
+      properties: { seconds: { type: "number", description: "How long at most (1-20). Default 3." }, text: { type: "string", description: "Stop waiting as soon as this text is on the page." } },
+    },
+  },
+  {
+    name: "copy_to_clipboard",
+    description: "Put text on the user's clipboard (a summary, a link, an address, something from the page).",
+    parametersJsonSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
+  },
+  {
+    name: "compose_email",
+    description:
+      "Start an email: opens Gmail's compose window in a new tab with the recipient, subject and body filled in. Write the draft yourself from what the user said; the user reviews and presses send. Use it for 'email X about...', 'write to...', 'draft a mail'.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: { to: { type: "string" }, subject: { type: "string" }, body: { type: "string" } },
+    },
+  },
+  {
+    name: "add_calendar_event",
+    description:
+      "Create a Google Calendar event (opens the pre-filled event page in a new tab for the user to save). Use for 'add a meeting Friday at 3', 'remind me to... on the 5th', 'put dinner with Sam on my calendar'.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        start: { type: "string", description: "Local date-time like 2026-11-05T15:00 (work it out from what the user said and today's date)." },
+        end: { type: "string", description: "Local date-time; defaults to one hour after start." },
+        details: { type: "string" },
+        location: { type: "string" },
+      },
+      required: ["title", "start"],
+    },
+  },
+  {
+    name: "translate_page",
+    description: "Open a translated copy of the current page (Google Translate) in a new tab.",
+    parametersJsonSchema: { type: "object", properties: { language: { type: "string", description: "Language code: en, hi, es, fr, de, ar, ja, zh..." } }, required: ["language"] },
+  },
+  {
+    name: "search_history",
+    description: "Search the user's browsing history: 'that recipe site from yesterday', 'the article about X I read last week'. Returns titles and links; open one with go_to or open_tab.",
+    parametersJsonSchema: { type: "object", properties: { query: { type: "string" }, days: { type: "integer", description: "How far back to look (default 30)." } }, required: ["query"] },
+  },
+  { name: "bookmark_page", description: "Bookmark the page the user is on." },
+  {
+    name: "search_bookmarks",
+    description: "Find a saved bookmark by words in its title or address.",
+    parametersJsonSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+  },
+  {
+    name: "find_tab",
+    description: "Find an open tab by words in its title or address and switch to it ('go to my Gmail tab', 'switch to YouTube').",
+    parametersJsonSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+  },
+  { name: "close_duplicate_tabs", description: "Close tabs that are open twice (same address), keeping one of each." },
+  {
+    name: "zoom_page",
+    description: "Make the page bigger or smaller for the user ('make the text bigger', 'zoom out', 'reset zoom').",
+    parametersJsonSchema: { type: "object", properties: { level: { type: "number", description: "Zoom factor 0.5-3, e.g. 1.25. Use 1 to reset." } }, required: ["level"] },
   },
   {
     name: "get_selection",
@@ -166,11 +244,24 @@ export const BROWSER_TOOLS: FunctionDeclaration[] = [
 export const COMPANION_TOOLS: FunctionDeclaration[] = [
   {
     name: "emote",
-    description: "Show a feeling with Tekkie's body: laugh at jokes, celebrate success, look surprised, sad, in love, or munch a snack.",
+    description: "Show a feeling with Tekkie's body: laugh, celebrate, surprised, sad, love, eat, nod (yes), shake (no), shrug, think, angry, yawn, stretch, wave.",
     parametersJsonSchema: {
       type: "object",
-      properties: { feeling: { type: "string", enum: ["laugh", "celebrate", "surprised", "sad", "love", "eat"] } },
+      properties: { feeling: { type: "string", enum: ["laugh", "celebrate", "surprised", "sad", "love", "eat", "nod", "shake", "shrug", "think", "angry", "yawn", "stretch", "wave"] } },
       required: ["feeling"],
+    },
+  },
+  {
+    name: "set_look",
+    description:
+      "Change how Tekkie looks when the user asks: its body (robot, humanoid = a person/buddy, creature = a pet/critter/bunny/cat), its skin colour set, or a hat/outfit. E.g. 'turn into a cat' → form creature; 'be a person' → humanoid; 'wear the crown' → accessory crown; 'go gold' → skin gold.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        form: { type: "string", enum: ["robot", "humanoid", "creature"] },
+        skin: { type: "string", enum: ["classic", "street", "halloween", "festive", "galaxy", "gold", "custom"] },
+        accessory: { type: "string", enum: ["none", "glasses", "cap", "bow", "scarf", "witch-hat", "santa-hat", "crown"] },
+      },
     },
   },
   {

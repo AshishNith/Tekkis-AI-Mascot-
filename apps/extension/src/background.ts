@@ -1,4 +1,5 @@
-import { loadList, loadSettings, newId, saveList, siteRules, type Item, type ListName } from "./settings";
+import { loadList, loadSettings, newId, saveList, saveSettings, siteRules, type Item, type ListName } from "./settings";
+import { ACCESSORIES, SKINS } from "../../web/src/mascot/skins";
 
 const MIC_SETUP = "permission.html";
 const OFFSCREEN = "offscreen.html";
@@ -248,7 +249,19 @@ async function afterInteraction(tabId: number) {
 }
 
 async function click(tabId: number, args: Record<string, unknown>) {
-  const spot = (await act(tabId, "aim", args)) as { x: number; y: number; hit: boolean; label: string };
+  let spot = (await act(tabId, "aim", args)) as { x: number; y: number; hit: boolean; label: string };
+  if (!spot.hit) {
+    // Something covers it: a cookie banner or pop-up, most likely. Clear it and aim again.
+    try {
+      const closed = (await act(tabId, "dismiss_popups", {})) as { clicked: string | null };
+      if (closed.clicked) {
+        await new Promise((r) => setTimeout(r, 500));
+        spot = (await act(tabId, "aim", { ...args, confirmed: true })) as typeof spot;
+      }
+    } catch {
+      /* no pop-up to close */
+    }
+  }
   if (spot.hit) {
     try {
       await mouse(tabId, spot.x, spot.y, "click");
@@ -464,14 +477,148 @@ async function controlMedia(args: Record<string, unknown>): Promise<unknown> {
   return { done: action, tab: (pick.title ?? host).slice(0, 60), playing: out.playing, muted: out.muted };
 }
 
+// --- Productivity: email, calendar, translation, history, bookmarks, tabs. -----------------------
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** YYYYMMDDTHHMMSS in local time, as Google Calendar's template link wants it. */
+function calendarStamp(raw: string) {
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) throw new Error(`I couldn't read the date "${raw}". Use a form like 2026-11-05T15:00.`);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`;
+}
+
+async function runProductivityTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  const str = (k: string, max = 2000) => String(args[k] ?? "").slice(0, max);
+  switch (name) {
+    case "compose_email": {
+      const q = new URLSearchParams({ view: "cm", fs: "1" });
+      if (str("to")) q.set("to", str("to", 300));
+      if (str("subject")) q.set("su", str("subject", 300));
+      if (str("body")) q.set("body", str("body", 6000));
+      await chrome.tabs.create({ url: `https://mail.google.com/mail/?${q}`, active: true });
+      return { opened: "Gmail compose", note: "The draft is filled in. Tell the user to check it and press Send; never send it yourself." };
+    }
+    case "add_calendar_event": {
+      const start = calendarStamp(str("start"));
+      const end = str("end") ? calendarStamp(str("end")) : calendarStamp(new Date(new Date(str("start")).getTime() + 3_600_000).toISOString());
+      const q = new URLSearchParams({ action: "TEMPLATE", text: str("title", 200), dates: `${start}/${end}` });
+      if (str("details")) q.set("details", str("details"));
+      if (str("location")) q.set("location", str("location", 300));
+      await chrome.tabs.create({ url: `https://calendar.google.com/calendar/render?${q}`, active: true });
+      return { opened: "Google Calendar event", note: "The event is filled in; the user presses Save." };
+    }
+    case "search_history": {
+      const days = Math.min(365, Math.max(1, Number(args.days) || 30));
+      const items = await chrome.history.search({ text: str("query", 100), startTime: Date.now() - days * 86_400_000, maxResults: 15 });
+      return items.map((h) => ({ title: (h.title ?? "").slice(0, 80), url: (h.url ?? "").slice(0, 150), when: h.lastVisitTime ? new Date(h.lastVisitTime).toLocaleString() : undefined }));
+    }
+    case "bookmark_page": {
+      const tab = await activeTab();
+      if (!tab.url || !/^https?:/.test(tab.url)) throw new Error("This page can't be bookmarked.");
+      const existing = await chrome.bookmarks.search({ url: tab.url });
+      if (existing.length) return { bookmarked: true, already: true, title: existing[0].title };
+      await chrome.bookmarks.create({ title: tab.title ?? tab.url, url: tab.url });
+      return { bookmarked: true, title: tab.title };
+    }
+    case "search_bookmarks": {
+      const hits = await chrome.bookmarks.search(str("query", 100));
+      return hits.filter((b) => b.url).slice(0, 15).map((b) => ({ title: b.title.slice(0, 80), url: b.url!.slice(0, 150) }));
+    }
+    case "find_tab": {
+      const words = str("query", 100).toLowerCase().split(/\s+/).filter(Boolean);
+      const all = await chrome.tabs.query({});
+      const text = (t: chrome.tabs.Tab) => `${t.title} ${t.url}`.toLowerCase();
+      let tabs = all.filter((t) => words.every((w) => text(t).includes(w)));
+      if (!tabs.length) tabs = all.filter((t) => words.some((w) => w.length > 2 && text(t).includes(w)));
+      if (!tabs.length) throw new Error("No open tab matches that. Call list_tabs to see them, or open_tab to open it.");
+      const tab = tabs[0];
+      await chrome.tabs.update(tab.id!, { active: true });
+      if (tab.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
+      return { switched: (tab.title ?? "").slice(0, 80), others: tabs.length - 1 };
+    }
+    case "close_duplicate_tabs": {
+      const tabs = await chrome.tabs.query({});
+      const seen = new Map<string, chrome.tabs.Tab>();
+      const close: number[] = [];
+      for (const t of [...tabs].sort((a, b) => Number(b.active) - Number(a.active) || (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))) {
+        const key = (t.url ?? "").split("#")[0];
+        if (!key || !/^https?:/.test(key)) continue;
+        if (seen.has(key)) close.push(t.id!);
+        else seen.set(key, t);
+      }
+      if (close.length) await chrome.tabs.remove(close);
+      return { closed: close.length };
+    }
+    case "zoom_page": {
+      const tab = await activeTab();
+      const level = Math.min(3, Math.max(0.5, Number(args.level) || 1));
+      await chrome.tabs.setZoom(tab.id!, level);
+      return { zoom: level };
+    }
+    case "translate_page": {
+      const tab = await activeTab();
+      if (!tab.url || !/^https?:/.test(tab.url)) throw new Error("This page can't be translated.");
+      const tl = str("language", 10).toLowerCase().replace(/[^a-z-]/g, "") || "en";
+      await chrome.tabs.create({ url: `https://translate.google.com/translate?sl=auto&tl=${tl}&u=${encodeURIComponent(tab.url)}`, active: true });
+      return { opened: "translated page", language: tl };
+    }
+    case "wait_for": {
+      const tab = await activeTab();
+      const seconds = Math.min(20, Math.max(1, Number(args.seconds) || 3));
+      const text = String(args.text ?? "").trim();
+      const until = Date.now() + seconds * 1000;
+      while (Date.now() < until) {
+        await sleep(400);
+        if (!text) continue;
+        try {
+          const r = (await act(tab.id!, "page_has_text", { text })) as { found: boolean };
+          if (r.found) return { found: text };
+        } catch {
+          /* page still loading */
+        }
+      }
+      return text ? { found: false, note: `"${text}" didn't appear in ${seconds}s. Call read_page to see what is there.` } : { waited: seconds };
+    }
+    case "set_look": {
+      const patch: Record<string, unknown> = {};
+      const form = String(args.form ?? "");
+      if (["robot", "humanoid", "creature"].includes(form)) patch.form = form;
+      const skin = String(args.skin ?? "");
+      if (skin === "custom" || SKINS.some((s) => s.id === skin)) patch.skinId = skin;
+      const accessory = String(args.accessory ?? "");
+      if (ACCESSORIES.some((a) => a.id === accessory)) patch.accessory = accessory === "none" ? "" : accessory;
+      if (!Object.keys(patch).length) throw new Error("Pick a form (robot, humanoid, creature), a skin or an accessory.");
+      await saveSettings(patch);
+      return { changed: patch, note: "Done; the new look shows right away. Locked skins and hats need a higher bond level." };
+    }
+  }
+  return undefined;
+}
+const PRODUCTIVITY_TOOLS = new Set([
+  "compose_email",
+  "add_calendar_event",
+  "search_history",
+  "bookmark_page",
+  "search_bookmarks",
+  "find_tab",
+  "close_duplicate_tabs",
+  "zoom_page",
+  "translate_page",
+  "wait_for",
+  "set_look",
+]);
+
 const LIST_TOOLS = new Set(["remember", "forget", "add_note", "list_notes", "add_todo", "complete_todo", "list_todos", "set_reminder"]);
-const HANDS_ON = new Set(["click", "type_text", "fill_form", "press_key", "hover"]);
+const HANDS_ON = new Set(["click", "type_text", "fill_form", "press_key", "hover", "dismiss_popups"]);
 
 async function runTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   if (LIST_TOOLS.has(name)) return runListTool(name, args);
   if (name === "save_screenshot") return saveScreenshot();
   if (name === "play_on_youtube") return playOnYoutube(String(args.query ?? ""));
   if (name === "control_media") return controlMedia(args);
+  if (PRODUCTIVITY_TOOLS.has(name)) return runProductivityTool(name, args);
   // Chrome-level tools don't need a page.
   if (name === "list_tabs") {
     const tabs = await chrome.tabs.query({});
@@ -506,6 +653,9 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<unk
     case "get_selection":
     case "point_at":
     case "clear_highlights":
+    case "find_on_page":
+    case "dismiss_popups":
+    case "copy_to_clipboard":
       return act(tabId, name, args);
     case "click":
       return click(tabId, args);

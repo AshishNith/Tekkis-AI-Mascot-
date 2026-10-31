@@ -1,8 +1,8 @@
-import { TekkieCharacter } from "../../web/src/mascot/TekkieCharacter";
-import { SKINS } from "../../web/src/mascot/skins";
+import { FORMS, TekkieCharacter } from "../../web/src/mascot/TekkieCharacter";
+import { ACCESSORIES, SKINS, type Accessory } from "../../web/src/mascot/skins";
 import { decay, levelOf, newCare, type CareState } from "../../web/src/widget/care";
 import { RemoteVoiceSession } from "./remote-voice";
-import { loadList, loadSettings, resolveSkin, saveList, saveSettings, sha256, type ListName } from "./settings";
+import { base64ToBytes, bytesToBase64, loadList, loadSettings, MODEL_KEY, resolveAccessory, resolveSkin, saveList, saveSettings, sha256, type ListName, type StoredModel } from "./settings";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const hex = (n: number) => `#${n.toString(16).padStart(6, "0")}`;
@@ -14,8 +14,21 @@ const level = levelOf(care.xp);
 
 // --- Tekkie says hi from the popup too, and follows the pointer. ------------------------------
 const canvas = $<HTMLCanvasElement>("mascot");
-const mascot = new TekkieCharacter(canvas);
+const mascot = new TekkieCharacter(canvas, settings.form === "glb" ? "robot" : settings.form);
 mascot.setSkin(resolveSkin(settings, level));
+mascot.setAccessory(resolveAccessory(settings, level));
+mascot.setMood(care);
+if (settings.form === "glb") void wearStoredModel();
+
+async function wearStoredModel() {
+  const stored = (await chrome.storage.local.get(MODEL_KEY))[MODEL_KEY] as StoredModel | undefined;
+  if (!stored?.data) return;
+  try {
+    await mascot.loadModel(base64ToBytes(stored.data));
+  } catch {
+    /* the page shows the robot instead */
+  }
+}
 mascot.resize(canvas.clientWidth, canvas.clientHeight);
 setTimeout(() => mascot.wave(), 300);
 canvas.addEventListener("click", () => mascot.emote(["laugh", "love", "celebrate", "surprised"][Math.floor(Math.random() * 4)] as "laugh"));
@@ -113,7 +126,105 @@ function fillSelect(sel: HTMLSelectElement, entries: [string, string][], current
 $("shortcuts").addEventListener("click", () => void chrome.tabs.create({ url: "chrome://extensions/shortcuts" }));
 
 // --- Look & feel -----------------------------------------------------------------------------
-$("bond").textContent = `(bond level ${level})`;
+$("bond").textContent = `(bond level ${level}${care.streak ? ` · 🔥 ${care.streak}-day streak` : ""})`;
+
+const formsEl = $("forms");
+function renderForms() {
+  formsEl.innerHTML = "";
+  for (const form of FORMS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = `${form.icon} ${form.name}`;
+    btn.title = form.blurb;
+    btn.setAttribute("aria-pressed", String(form.id === settings.form));
+    btn.addEventListener("click", async () => {
+      await saveSettings({ form: form.id });
+      settings = await loadSettings();
+      mascot.setForm(form.id);
+      mascot.wave();
+      renderForms();
+    });
+    formsEl.appendChild(btn);
+  }
+}
+renderForms();
+
+const modelFile = $<HTMLInputElement>("model-file");
+const modelMsg = $("model-msg");
+async function showModelState() {
+  const stored = (await chrome.storage.local.get(MODEL_KEY))[MODEL_KEY] as StoredModel | undefined;
+  modelMsg.className = "note";
+  modelMsg.textContent = stored ? `${settings.form === "glb" ? "Wearing" : "Saved"}: ${stored.name} (${Math.round(stored.data.length * 0.75 / 1024)} KB)` : "";
+  $<HTMLButtonElement>("model-clear").disabled = !stored;
+}
+modelFile.addEventListener("change", async () => {
+  const f = modelFile.files?.[0];
+  if (!f) return;
+  if (f.size > 25 * 1024 * 1024) {
+    modelMsg.className = "note warn";
+    modelMsg.textContent = "That model is over 25 MB. Try a lighter one.";
+    return;
+  }
+  try {
+    const bytes = await f.arrayBuffer();
+    await mascot.loadModel(bytes.slice(0)); // check it loads before keeping it
+    await chrome.storage.local.set({ [MODEL_KEY]: { name: f.name, data: bytesToBase64(bytes) } satisfies StoredModel });
+    await saveSettings({ form: "glb" });
+    settings = await loadSettings();
+    renderForms();
+    mascot.wave();
+  } catch (err) {
+    modelMsg.className = "note warn";
+    modelMsg.textContent = `Couldn't load that model: ${err instanceof Error ? err.message : String(err)}`;
+    return;
+  }
+  void showModelState();
+});
+$("model-clear").addEventListener("click", async () => {
+  await chrome.storage.local.remove(MODEL_KEY);
+  if (settings.form === "glb") {
+    await saveSettings({ form: "robot" });
+    settings = await loadSettings();
+    mascot.setForm("robot");
+    renderForms();
+  }
+  modelFile.value = "";
+  void showModelState();
+});
+void showModelState();
+
+const hatsEl = $("hats");
+function renderHats() {
+  hatsEl.innerHTML = "";
+  for (const hat of ACCESSORIES) {
+    const locked = (hat.unlockLevel ?? 1) > level;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = locked ? `🔒 ${hat.name}` : `${hat.icon} ${hat.name}`;
+    btn.title = locked ? `Unlocks at bond level ${hat.unlockLevel}` : hat.name;
+    btn.disabled = locked;
+    btn.setAttribute("aria-pressed", String((resolveAccessory(settings, level) ?? "none") === hat.id));
+    btn.addEventListener("click", async () => {
+      const accessory: Accessory | "" = hat.id === "none" ? "" : hat.id;
+      await saveSettings({ accessory });
+      settings = await loadSettings();
+      mascot.setAccessory(resolveAccessory(settings, level));
+      renderHats();
+    });
+    hatsEl.appendChild(btn);
+  }
+}
+renderHats();
+
+const soundsBox = $<HTMLInputElement>("sounds");
+soundsBox.checked = settings.sounds;
+soundsBox.addEventListener("change", () => void saveSettings({ sounds: soundsBox.checked }));
+const fidgetsBox = $<HTMLInputElement>("fidgets");
+fidgetsBox.checked = settings.fidgets;
+fidgetsBox.addEventListener("change", () => {
+  mascot.fidgets = fidgetsBox.checked;
+  void saveSettings({ fidgets: fidgetsBox.checked });
+});
 const skinsEl = $("skins");
 function renderSkins() {
   skinsEl.innerHTML = "";

@@ -39,6 +39,8 @@ export interface VoiceController {
   readonly active: boolean;
   readonly outputLevel: number;
   readonly inputLevel: number;
+  /** Mouth shape of the voice right now: 0 round, 1 wide (for lip sync). */
+  readonly outputShape?: number;
   start(): Promise<void>;
   stop(): void;
   sendText(text: string): void;
@@ -125,6 +127,9 @@ export class LiveVoiceSession implements VoiceController {
   }
   get inputLevel() {
     return this.micLevel;
+  }
+  get outputShape() {
+    return this.player.shape();
   }
 
   async start() {

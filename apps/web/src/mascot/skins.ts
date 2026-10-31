@@ -1,17 +1,33 @@
 // A skin is just data, so new ones (store items, seasonal drops) need no character code changes.
-export type Accessory = "none" | "witch-hat" | "santa-hat" | "cap";
+export type Accessory = "none" | "witch-hat" | "santa-hat" | "cap" | "crown" | "glasses" | "bow" | "scarf";
+
+export const ACCESSORIES: { id: Accessory; name: string; icon: string; unlockLevel?: number }[] = [
+  { id: "none", name: "Nothing", icon: "✨" },
+  { id: "glasses", name: "Glasses", icon: "👓" },
+  { id: "cap", name: "Cap", icon: "🧢", unlockLevel: 2 },
+  { id: "bow", name: "Bow", icon: "🎀", unlockLevel: 2 },
+  { id: "scarf", name: "Scarf", icon: "🧣", unlockLevel: 3 },
+  { id: "witch-hat", name: "Witch hat", icon: "🎃", unlockLevel: 3 },
+  { id: "santa-hat", name: "Santa hat", icon: "🎅", unlockLevel: 4 },
+  { id: "crown", name: "Crown", icon: "👑", unlockLevel: 5 },
+];
 
 export interface Skin {
   id: string;
   name: string;
+  /** Shell (robot), hoodie (buddy) or fur (critter). */
   body: number;
+  /** Screen (robot), hair (buddy) or inner ears and belly (critter). */
   visor: number;
+  /** Eyes. */
   glow: number;
   sneaker: number;
   sneakerStripe: number;
   sole: number;
   accessory: Accessory;
   accessoryColor: number;
+  /** Buddy's skin tone (defaults to a warm beige). */
+  skinTone?: number;
   /** Bond level (from looking after Tekkie) needed to wear this skin. */
   unlockLevel?: number;
 }
@@ -27,7 +43,7 @@ export const SKINS: Skin[] = [
     sneakerStripe: 0xffffff,
     sole: 0xf4f4f4,
     accessory: "none",
-    accessoryColor: 0,
+    accessoryColor: 0xff4f81,
   },
   {
     id: "street",
@@ -78,7 +94,7 @@ export const SKINS: Skin[] = [
     sneakerStripe: 0xff7cf5,
     sole: 0x111133,
     accessory: "none",
-    accessoryColor: 0,
+    accessoryColor: 0x7cf5ff,
     unlockLevel: 5,
   },
   {
@@ -90,7 +106,7 @@ export const SKINS: Skin[] = [
     sneaker: 0x111111,
     sneakerStripe: 0xf2c14e,
     sole: 0xffffff,
-    accessory: "cap",
+    accessory: "crown",
     accessoryColor: 0x111111,
     unlockLevel: 6,
   },
@@ -98,7 +114,7 @@ export const SKINS: Skin[] = [
 
 /** A skin made from the user's own colours (always available). */
 export function customSkin(colors: { body: number; visor: number; glow: number; sneaker: number }): Skin {
-  return { id: "custom", name: "Custom", ...colors, sneakerStripe: 0xffffff, sole: 0xf4f4f4, accessory: "none", accessoryColor: 0 };
+  return { id: "custom", name: "Custom", ...colors, sneakerStripe: 0xffffff, sole: 0xf4f4f4, accessory: "none", accessoryColor: colors.sneaker };
 }
 
 export const DEFAULT_SKIN = SKINS[0];

@@ -40,7 +40,8 @@
       ul.items button { padding: 0 7px; height: 22px; font-size: 12px; line-height: 1; }
       .empty { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
       .pin { display: flex; gap: 6px; margin-top: 6px; }
-      .pin input { flex: 1; }
+      .pin input { flex: 1; min-width: 0; }
+      input[type="file"] { font-size: 12px; }
       #status.ok, #pin-msg.ok { color: #1a8a4a; } #status.warn, #pin-msg.warn { color: var(--danger); }
       kbd { font: 11px ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; }
       .shortcuts { padding-left: 16px; margin: 4px 0 8px; font-size: 12px; }
@@ -81,8 +82,17 @@
 
     <details>
       <summary>Look &amp; feel <small id="bond"></small></summary>
+      <h2>Body</h2>
+      <div id="forms" class="wrap"></div>
+      <p class="note">Or wear your own rigged <code>.glb</code> (from Meshy, Ready Player Me, Mixamo…). Clips named idle / walk / wave / dance / talk and blend shapes for the mouth and blinking are picked up automatically.</p>
+      <div class="pin"><input id="model-file" type="file" accept=".glb,model/gltf-binary" aria-label="Custom model file" /><button id="model-clear" type="button">Remove</button></div>
+      <p id="model-msg" class="note" role="status"></p>
       <h2>Skin</h2>
       <div id="skins" class="wrap"></div>
+      <h2>Hats &amp; outfits</h2>
+      <div id="hats" class="wrap"></div>
+      <label class="row"><span>Sounds<small>little chirps for feelings and hellos</small></span><input id="sounds" type="checkbox" /></label>
+      <label class="row"><span>Fidgets<small>looks around, stretches and yawns when idle</small></span><input id="fidgets" type="checkbox" /></label>
       <h2>My colours</h2>
       <div class="colors">
         <label>Body<input id="c-body" type="color" /></label>

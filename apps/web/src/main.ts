@@ -1,22 +1,39 @@
 import { mountTekkie } from "./widget/TekkieWidget";
-import { SKINS } from "./mascot/skins";
+import { ACCESSORIES, SKINS } from "./mascot/skins";
+import { FORMS } from "./mascot/TekkieCharacter";
 import { LiveVoiceSession } from "./voice/LiveVoiceSession";
 
 const tekkie = mountTekkie({ voice: new LiveVoiceSession("") });
 
-// Skin picker for the playground page.
-const skinsEl = document.getElementById("skins")!;
-for (const skin of SKINS) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.setAttribute("aria-pressed", String(skin.id === SKINS[0].id));
-  btn.innerHTML = `<span class="swatch" style="background:#${skin.body.toString(16).padStart(6, "0")}"></span>${skin.name}`;
-  btn.addEventListener("click", () => {
-    tekkie.setSkin(skin);
-    skinsEl.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
-  });
-  skinsEl.appendChild(btn);
+function picker<T extends { id: string }>(el: HTMLElement, items: T[], label: (i: T) => string, pick: (i: T) => void, first = items[0].id) {
+  for (const item of items) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.setAttribute("aria-pressed", String(item.id === first));
+    btn.innerHTML = label(item);
+    btn.addEventListener("click", () => {
+      pick(item);
+      el.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+    });
+    el.appendChild(btn);
+  }
 }
+
+picker(document.getElementById("forms")!, FORMS, (f) => `${f.icon} ${f.name}`, (f) => tekkie.setForm(f.id));
+picker(document.getElementById("skins")!, SKINS, (s) => `<span class="swatch" style="background:#${s.body.toString(16).padStart(6, "0")}"></span>${s.name}`, (s) => tekkie.setSkin(s));
+picker(document.getElementById("hats")!, ACCESSORIES, (a) => `${a.icon} ${a.name}`, (a) => tekkie.setAccessory(a.id === "none" ? null : a.id));
+
+// Drop in your own rigged .glb (Meshy, Ready Player Me, Mixamo...).
+const file = document.getElementById("model") as HTMLInputElement;
+file.addEventListener("change", async () => {
+  const f = file.files?.[0];
+  if (!f) return;
+  try {
+    await tekkie.loadModel(await f.arrayBuffer());
+  } catch (err) {
+    alert(`Couldn't load that model: ${err instanceof Error ? err.message : String(err)}`);
+  }
+});
 
 // Tell the developer whether voice is wired up.
 const statusEl = document.getElementById("server-status")!;
