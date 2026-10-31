@@ -1,0 +1,9 @@
+{
+  "appId": "com.tekkie.app",
+  "appName": "Tekkie",
+  "webDir": "dist",
+  "backgroundColor": "#110e22",
+  "android": {
+    "allowMixedContent": true
+  }
+}

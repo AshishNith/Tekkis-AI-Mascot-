@@ -16,6 +16,7 @@ Timeline from the 28 Oct meeting: project start no later than 28 Nov, launch mid
 ## Roadmap
 
 1. **3D character + realtime voice** ✅ — floating draggable Tekkie, lip sync, states, Gemini Live voice, skins as data.
+   - **Android app** ✅ — Capacitor APK with full-screen Tekkie, settings, key-on-device or server connection. Floating over other apps (Android overlay bubble) comes later as a native feature.
 2. **Chrome extension shell** — MV3 extension that injects the widget on any site, settings popup, mic permission flow.
 3. **Screen awareness (on demand)** — read the active tab (text + screenshot) and send it to Gemini so Tekkie can answer "what's this?".
 4. **Accounts + memory** — sign-in, remembered facts/preferences, opt-in activity timeline stored locally with a consent screen and a delete-all button.

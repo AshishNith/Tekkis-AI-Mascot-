@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#110e22" />
+    <title>Tekkie</title>
+    <link rel="stylesheet" href="/src/app.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <span class="brand">Tekkie</span>
+        <span class="status" id="status">Tap to talk</span>
+        <button class="icon-btn" id="open-settings" type="button" aria-label="Settings">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)"/></svg>
+        </button>
+      </header>
+
+      <div class="stage" id="stage"><canvas id="tekkie"></canvas></div>
+
+      <div class="captions" aria-live="polite">
+        <div class="you" id="you"></div>
+        <div class="said" id="said">Hi, I'm Tekkie! Tap the mic and say hello.</div>
+      </div>
+
+      <div class="skins" id="skins" role="group" aria-label="Skins"></div>
+
+      <form class="type" id="type-form">
+        <input id="type-input" type="text" placeholder="Type to Tekkie…" aria-label="Message" enterkeyhint="send" />
+        <button type="submit" class="send">Send</button>
+      </form>
+
+      <footer>
+        <button class="round" id="keyboard" type="button" aria-label="Type instead">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M20 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm-9 3h2v2h-2V8Zm0 3h2v2h-2v-2ZM8 8h2v2H8V8Zm0 3h2v2H8v-2Zm-1 2H5v-2h2v2Zm0-3H5V8h2v2Zm9 7H8v-2h8v2Zm0-4h-2v-2h2v2Zm0-3h-2V8h2v2Zm3 3h-2v-2h2v2Zm0-3h-2V8h2v2Z"/></svg>
+        </button>
+        <button class="mic" id="mic" type="button" aria-label="Start talking" aria-pressed="false">
+          <svg class="mic-icon" viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2Z"/></svg>
+          <svg class="stop-icon" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+        </button>
+        <span class="round-spacer"></span>
+      </footer>
+    </div>
+
+    <dialog id="settings" aria-labelledby="settings-title">
+      <form method="dialog" id="settings-form">
+        <h2 id="settings-title">Settings</h2>
+
+        <fieldset>
+          <legend>How Tekkie connects</legend>
+          <label class="choice"><input type="radio" name="mode" value="apiKey" /> <span><strong>My Gemini key</strong><small>Saved only on this phone. Good for testing.</small></span></label>
+          <label class="choice"><input type="radio" name="mode" value="server" /> <span><strong>Tekkie server</strong><small>Your PC on the same Wi-Fi, or the cloud server later.</small></span></label>
+        </fieldset>
+
+        <div data-mode="apiKey">
+          <label>Gemini API key<input name="apiKey" type="password" autocomplete="off" placeholder="Paste your key" /></label>
+          <label>Model<input name="model" type="text" autocomplete="off" /></label>
+          <label>Voice
+            <select name="voice">
+              <option>Puck</option><option>Kore</option><option>Aoede</option><option>Charon</option>
+              <option>Fenrir</option><option>Leda</option><option>Orus</option><option>Zephyr</option>
+            </select>
+          </label>
+        </div>
+
+        <div data-mode="server">
+          <label>Server address<input name="serverUrl" type="url" inputmode="url" autocomplete="off" placeholder="http://192.168.1.10:8787" /></label>
+          <p class="hint">Start the server on your PC with <code>npm run dev</code>; it prints the address to use.</p>
+        </div>
+
+        <label class="toggle"><input name="interrupt" type="checkbox" /> <span>Let me interrupt Tekkie <small>Turn on only with headphones, or Tekkie hears itself.</small></span></label>
+
+        <p class="check" id="settings-check" role="status"></p>
+
+        <div class="actions">
+          <button type="button" id="settings-cancel" class="secondary">Cancel</button>
+          <button type="submit" id="settings-save">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

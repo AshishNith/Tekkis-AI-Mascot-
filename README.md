@@ -38,6 +38,35 @@ npm run build && npm start
 
 The server then serves the built site and the API on `PORT` (default 8787).
 
+## Android app (APK)
+
+`apps/mobile` wraps Tekkie in a native Android app with [Capacitor](https://capacitorjs.com): full-screen
+Tekkie, a big mic button, captions, skins and a Settings screen.
+
+**Install:** copy `tekkie.apk` to your phone, open it, and allow "Install unknown apps" when Android asks.
+On first launch Tekkie opens Settings — pick how it connects:
+
+- **My Gemini key** — saved only on that phone (Android backup is disabled for the app). Best for testing.
+- **Tekkie server** — e.g. your PC on the same Wi-Fi: run `npm run dev` and type in the
+  `On your phone (same Wi-Fi): http://…:8787` address it prints. Allow Node.js through the Windows firewall
+  if asked. This is the production path (later on AWS).
+
+"Let me interrupt Tekkie" is off by default: on a phone speaker Tekkie would otherwise hear itself.
+Turn it on with headphones.
+
+**Build the APK yourself** (needs Android Studio or the Android SDK + JDK 21):
+
+```bash
+npm run build:mobile
+```
+
+Then open `apps/mobile/android` in Android Studio and press Run, or build from that folder with
+`gradlew assembleDebug` (Windows: `gradlew.bat assembleDebug`). The APK lands in
+`apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
+
+App icons and splash screens come from `apps/mobile/assets/` (regenerate with
+`npx @capacitor/assets generate --android --assetPath assets` inside `apps/mobile`).
+
 ## How it works
 
 ```
@@ -62,7 +91,9 @@ Tekkie widget ── POST /api/live-token ───► mints 1-use ephemeral tok
 | `apps/web/src/voice/LiveVoiceSession.ts` | Realtime conversation with Gemini Live: states, captions, interruptions |
 | `apps/web/src/voice/audio.ts`, `pcm-capture-worklet.js` | Mic capture (16 kHz PCM) and gap-free playback with loudness for lip sync |
 | `apps/web/src/widget/` | Floating, draggable widget in a Shadow DOM (safe to drop on any site) |
-| `server/src/` | Token server, Tekkie's persona, model listing script |
+| `apps/mobile/` | Android app (Capacitor): phone layout, settings, connection modes |
+| `shared/tekkie-persona.md` | Tekkie's personality, used by the server and the app |
+| `server/src/` | Token server and model listing script |
 
 ## Tekkie's states
 

@@ -52,7 +52,7 @@ export function mountTekkie(options: TekkieOptions = {}) {
 
   const character = new TekkieCharacter($<HTMLCanvasElement>("canvas"));
   character.setSkin(options.skin ?? DEFAULT_SKIN);
-  const voice = new LiveVoiceSession(options.apiBase ?? "");
+  const voice = new LiveVoiceSession({ kind: "server", apiBase: options.apiBase ?? "" });
 
   // --- Speech bubble -------------------------------------------------------
   let hideTimer = 0;

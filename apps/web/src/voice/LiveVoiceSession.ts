@@ -1,5 +1,6 @@
 import type { LiveServerMessage, Session } from "@google/genai";
 import { MicCapture, PcmPlayer, int16ToBase64 } from "./audio";
+import TEKKIE_PERSONA from "../../../../shared/tekkie-persona.md?raw";
 
 export type VoiceState = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
@@ -10,9 +11,29 @@ export interface VoiceEvents {
   error: (message: string) => void;
 }
 
-interface TokenResponse {
-  token: string;
+/**
+ * How a session reaches Gemini:
+ * - `server`: our server mints a locked, single-use token (production; the key stays server-side).
+ * - `apiKey`: the user's own Gemini key, kept on their device (personal testing in the mobile app).
+ */
+export type VoiceConnection =
+  | { kind: "server"; apiBase: string }
+  | { kind: "apiKey"; apiKey: string; model: string; voice: string };
+
+export interface VoiceOptions {
+  /**
+   * Stop sending the mic while Tekkie talks, so a phone speaker doesn't make Tekkie interrupt
+   * itself. Turn off with headphones to allow talking over Tekkie.
+   */
+  halfDuplex?: boolean;
+}
+
+interface Credentials {
+  apiKey: string;
   model: string;
+  /** Ephemeral tokens already carry persona and voice; raw keys need them sent. */
+  ephemeral: boolean;
+  voice?: string;
 }
 
 /**
@@ -30,7 +51,10 @@ export class LiveVoiceSession {
   private turnComplete = false;
   private micLevel = 0;
 
-  constructor(private apiBase = "") {}
+  constructor(
+    public connection: VoiceConnection = { kind: "server", apiBase: "" },
+    public options: VoiceOptions = {},
+  ) {}
 
   on<K extends keyof VoiceEvents>(event: K, fn: VoiceEvents[K]) {
     this.listeners[event].push(fn);
@@ -68,13 +92,22 @@ export class LiveVoiceSession {
     try {
       await this.player.resume();
       // The SDK is large, so it loads only when a conversation starts.
-      const [{ token, model }, { GoogleGenAI, Modality }] = await Promise.all([this.fetchToken(), import("@google/genai")]);
-      const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: "v1alpha" } });
+      const [creds, { GoogleGenAI, Modality }] = await Promise.all([this.credentials(), import("@google/genai")]);
+      const ai = new GoogleGenAI({
+        apiKey: creds.apiKey,
+        httpOptions: creds.ephemeral ? { apiVersion: "v1alpha" } : undefined,
+      });
 
       this.session = await ai.live.connect({
-        model,
+        model: creds.model,
         config: {
           responseModalities: [Modality.AUDIO],
+          ...(creds.ephemeral
+            ? {}
+            : {
+                systemInstruction: TEKKIE_PERSONA,
+                speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: creds.voice } } },
+              }),
           inputAudioTranscription: {},
           outputAudioTranscription: {},
           // Lets a conversation run past the default audio session limit.
@@ -94,6 +127,7 @@ export class LiveVoiceSession {
 
       this.mic = new MicCapture((pcm, level) => {
         this.micLevel = level;
+        if (this.options.halfDuplex && this.state === "speaking") return;
         this.session?.sendRealtimeInput({ audio: { data: int16ToBase64(pcm), mimeType: "audio/pcm;rate=16000" } });
       });
       await this.mic.start();
@@ -129,11 +163,21 @@ export class LiveVoiceSession {
     this.emit("error", message);
   }
 
-  private async fetchToken(): Promise<TokenResponse> {
-    const res = await fetch(`${this.apiBase}/api/live-token`, { method: "POST" });
+  private async credentials(): Promise<Credentials> {
+    const c = this.connection;
+    if (c.kind === "apiKey") {
+      if (!c.apiKey) throw new Error("Add your Gemini API key in Settings first.");
+      return { apiKey: c.apiKey, model: c.model, voice: c.voice, ephemeral: false };
+    }
+    let res: Response;
+    try {
+      res = await fetch(`${c.apiBase}/api/live-token`, { method: "POST" });
+    } catch {
+      throw new Error(`Can't reach the Tekkie server${c.apiBase ? ` at ${c.apiBase}` : ""}.`);
+    }
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error ?? `Token request failed (${res.status})`);
-    return body as TokenResponse;
+    return { apiKey: body.token, model: body.model, ephemeral: true };
   }
 
   private handleMessage(msg: LiveServerMessage) {
@@ -198,7 +242,7 @@ export class LiveVoiceSession {
 
 function describeError(err: unknown): string {
   if (err instanceof DOMException && err.name === "NotAllowedError") {
-    return "Microphone access was blocked. Allow the mic in your browser to talk to Tekkie.";
+    return "Microphone access was blocked. Allow the microphone to talk to Tekkie.";
   }
   if (err instanceof DOMException && err.name === "NotFoundError") return "No microphone found.";
   return err instanceof Error ? err.message : String(err);

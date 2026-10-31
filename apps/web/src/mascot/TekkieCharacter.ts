@@ -69,7 +69,7 @@ export class TekkieCharacter {
     visor: new THREE.MeshStandardMaterial({ roughness: 0.22, metalness: 0.15 }),
     glow: new THREE.MeshBasicMaterial(),
     antenna: new THREE.MeshBasicMaterial(),
-    halo: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }),
+    halo: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.3, depthWrite: false }),
     sneaker: new THREE.MeshToonMaterial({ gradientMap: this.gradient }),
     stripe: new THREE.MeshToonMaterial({ gradientMap: this.gradient }),
     sole: new THREE.MeshToonMaterial({ gradientMap: this.gradient }),

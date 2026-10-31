@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
+import { networkInterfaces } from "node:os";
 import { config } from "./config.js";
 import { createLiveToken } from "./live-token.js";
 
@@ -96,5 +97,11 @@ const server = createServer(async (req, res) => {
 
 server.listen(config.port, () => {
   console.log(`Tekkie server on http://localhost:${config.port}`);
+  // The phone app reaches this server over Wi-Fi, so show the addresses it can use.
+  for (const addrs of Object.values(networkInterfaces())) {
+    for (const a of addrs ?? []) {
+      if (a.family === "IPv4" && !a.internal) console.log(`  On your phone (same Wi-Fi): http://${a.address}:${config.port}`);
+    }
+  }
   if (!config.geminiApiKey) console.warn("GEMINI_API_KEY is not set — voice will not work until you add it to .env");
 });
