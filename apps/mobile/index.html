@@ -49,8 +49,8 @@
 
         <fieldset>
           <legend>How Tekkie connects</legend>
-          <label class="choice"><input type="radio" name="mode" value="apiKey" /> <span><strong>My Gemini key</strong><small>Saved only on this phone. Good for testing.</small></span></label>
-          <label class="choice"><input type="radio" name="mode" value="server" /> <span><strong>Tekkie server</strong><small>Your PC on the same Wi-Fi, or the cloud server later.</small></span></label>
+          <label class="choice"><input type="radio" name="mode" value="server" /> <span><strong>Tekkie server</strong><small>Recommended. The Gemini key stays on the server.</small></span></label>
+          <label class="choice"><input type="radio" name="mode" value="apiKey" /> <span><strong>My Gemini key</strong><small>Saved only on this phone. For testing without a server.</small></span></label>
         </fieldset>
 
         <div data-mode="apiKey">
@@ -66,7 +66,7 @@
 
         <div data-mode="server">
           <label>Server address<input name="serverUrl" type="url" inputmode="url" autocomplete="off" placeholder="http://192.168.1.10:8787" /></label>
-          <p class="hint">Start the server on your PC with <code>npm run dev</code>; it prints the address to use.</p>
+          <p class="hint">Default is the public Tekkie server. For a PC on the same Wi-Fi, use the address <code>npm run dev</code> prints.</p>
         </div>
 
         <label class="toggle"><input name="interrupt" type="checkbox" /> <span>Let me interrupt Tekkie <small>Turn on only with headphones, or Tekkie hears itself.</small></span></label>

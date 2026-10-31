@@ -1,0 +1,4 @@
+{$TEKKIE_DOMAIN} {
+	encode gzip
+	reverse_proxy tekkie:8787
+}

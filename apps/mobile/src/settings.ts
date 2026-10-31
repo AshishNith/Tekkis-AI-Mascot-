@@ -11,21 +11,29 @@ export interface AppSettings {
   skin: string;
 }
 
-const KEY = "tekkie:settings:v1";
+const KEY = "tekkie:settings:v2";
+const OLD_KEY = "tekkie:settings:v1";
+
+/** Public Tekkie server baked into the app. Override at build time with VITE_TEKKIE_SERVER_URL. */
+export const DEFAULT_SERVER_URL = import.meta.env.VITE_TEKKIE_SERVER_URL || "https://srv1542348.hstgr.cloud";
 
 export const DEFAULTS: AppSettings = {
-  mode: "apiKey",
+  mode: "server",
   apiKey: "",
   model: "gemini-3.8-live",
   voice: "Puck",
-  serverUrl: "",
+  serverUrl: DEFAULT_SERVER_URL,
   interrupt: false,
   skin: "classic",
 };
 
 export function loadSettings(): AppSettings {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? "{}") };
+    const saved = localStorage.getItem(KEY);
+    if (saved) return { ...DEFAULTS, ...JSON.parse(saved) };
+    // Earlier builds defaulted to an on-phone key; keep the key and skin but start on the server.
+    const old = JSON.parse(localStorage.getItem(OLD_KEY) ?? "{}");
+    return { ...DEFAULTS, apiKey: old.apiKey ?? "", skin: old.skin ?? DEFAULTS.skin, voice: old.voice ?? DEFAULTS.voice };
   } catch {
     return { ...DEFAULTS };
   }

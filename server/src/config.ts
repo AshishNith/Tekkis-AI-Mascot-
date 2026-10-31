@@ -17,4 +17,6 @@ export const config = {
     .map((o) => o.trim())
     .filter(Boolean),
   webDist: resolve(repoRoot, "apps/web/dist"),
+  /** Set when running behind our own reverse proxy (Caddy), so client IPs come from X-Forwarded-For. */
+  trustProxy: process.env.TRUST_PROXY === "1",
 };

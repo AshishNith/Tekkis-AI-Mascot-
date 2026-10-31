@@ -22,6 +22,15 @@ function rateLimited(ip: string): boolean {
   return false;
 }
 
+function clientIp(req: IncomingMessage): string {
+  if (config.trustProxy) {
+    // Our proxy appends the real client address last; earlier entries can be spoofed.
+    const forwarded = String(req.headers["x-forwarded-for"] ?? "").split(",").pop()?.trim();
+    if (forwarded) return forwarded;
+  }
+  return req.socket.remoteAddress ?? "unknown";
+}
+
 function originAllowed(origin: string | undefined): boolean {
   if (!origin) return true; // same-origin requests and curl
   if (config.allowedOrigins.includes(origin)) return true;
@@ -78,7 +87,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (path === "/api/live-token" && req.method === "POST") {
-      const ip = req.socket.remoteAddress ?? "unknown";
+      const ip = clientIp(req);
       if (rateLimited(ip)) return sendJson(res, 429, { error: "Too many voice sessions, try again later." }, origin);
       try {
         return sendJson(res, 200, await createLiveToken(), origin);

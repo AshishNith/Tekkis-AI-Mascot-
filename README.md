@@ -38,31 +38,44 @@ npm run build && npm start
 
 The server then serves the built site and the API on `PORT` (default 8787).
 
+## Deploy the server (public URL)
+
+The production server runs on the Hostinger VPS in Docker, behind Caddy (automatic HTTPS), at
+**https://srv1542348.hstgr.cloud**. On the VPS (hPanel → VPS → Browser terminal, or SSH), run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AshishNith/Tekkis-AI-Mascot-/claude/ecstatic-wozniak-74b9as/deploy/install.sh | sudo TEKKIE_DOMAIN=srv1542348.hstgr.cloud bash
+```
+
+It installs Docker, fetches the code into `/opt/tekkie`, asks for the Gemini key once (kept in
+`/opt/tekkie/.env`, readable by root only), and starts everything. It stops without changing anything if
+another program already uses ports 80/443. Run the same command again to update.
+
 ## Android app (APK)
 
 `apps/mobile` wraps Tekkie in a native Android app with [Capacitor](https://capacitorjs.com): full-screen
 Tekkie, a big mic button, captions, skins and a Settings screen.
 
 **Install:** copy `tekkie.apk` to your phone, open it, and allow "Install unknown apps" when Android asks.
-On first launch Tekkie opens Settings — pick how it connects:
+Settings (gear icon) controls how it connects:
 
 - **My Gemini key** — saved only on that phone (Android backup is disabled for the app). Best for testing.
-- **Tekkie server** — e.g. your PC on the same Wi-Fi: run `npm run dev` and type in the
-  `On your phone (same Wi-Fi): http://…:8787` address it prints. Allow Node.js through the Windows firewall
-  if asked. This is the production path (later on AWS).
+- **Tekkie server** (default) — the public server. For a PC on the same Wi-Fi instead, run `npm run dev` and
+  type in the `On your phone (same Wi-Fi): http://…:8787` address it prints.
 
 "Let me interrupt Tekkie" is off by default: on a phone speaker Tekkie would otherwise hear itself.
 Turn it on with headphones.
 
-**Build the APK yourself** (needs Android Studio or the Android SDK + JDK 21):
+The app connects to the public server by default (`https://srv1542348.hstgr.cloud`, baked in at build time).
+
+**Build the APK** (needs the Android SDK + JDK 21, e.g. from Android Studio) — one command, ~1 minute:
 
 ```bash
-npm run build:mobile
+npm run apk
 ```
 
-Then open `apps/mobile/android` in Android Studio and press Run, or build from that folder with
-`gradlew assembleDebug` (Windows: `gradlew.bat assembleDebug`). The APK lands in
-`apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`.
+The result is `tekkie.apk` in the repo root. To bake in a different server, set `VITE_TEKKIE_SERVER_URL`
+before running it.
 
 App icons and splash screens come from `apps/mobile/assets/` (regenerate with
 `npx @capacitor/assets generate --android --assetPath assets` inside `apps/mobile`).
