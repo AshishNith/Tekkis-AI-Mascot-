@@ -1,4 +1,4 @@
-import { loadSettings } from "./settings";
+import { loadList, loadSettings, newId, saveList, siteRules, type Item, type ListName } from "./settings";
 
 const MIC_SETUP = "permission.html";
 const OFFSCREEN = "offscreen.html";
@@ -230,7 +230,64 @@ async function typeText(tabId: number, args: Record<string, unknown>) {
   return act(tabId, "type_text", args);
 }
 
+/** Memory, notes, to-dos and reminders: things Tekkie keeps for the user. */
+async function runListTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  const text = String(args.text ?? args.fact ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+  const add = async (list: ListName, extra: Partial<Item> = {}) => {
+    if (!text) throw new Error("There's nothing to save.");
+    const items = await loadList(list);
+    items.push({ id: newId(), text, at: Date.now(), ...extra });
+    await saveList(list, items);
+  };
+  const matches = (item: Item, words: string) => item.text.toLowerCase().includes(words.toLowerCase());
+  switch (name) {
+    case "remember":
+      if (/\b(password|pin|cvv|card number|otp)\b/i.test(text)) throw new Error("I don't keep secrets like passwords or card numbers.");
+      await add("memory");
+      return { remembered: text };
+    case "forget": {
+      const what = String(args.what ?? "").trim();
+      const items = await loadList("memory");
+      const keep = /^(everything|all)$/i.test(what) ? [] : items.filter((m) => !matches(m, what));
+      await saveList("memory", keep);
+      return { forgotten: items.length - keep.length };
+    }
+    case "add_note":
+      await add("notes");
+      return { saved: true };
+    case "list_notes":
+      return (await loadList("notes")).slice(-30).map((n) => n.text);
+    case "add_todo":
+      await add("todos");
+      return { added: true };
+    case "complete_todo": {
+      const items = await loadList("todos");
+      const hit = items.find((t) => !t.done && matches(t, text));
+      if (!hit) throw new Error("I couldn't find that to-do.");
+      hit.done = true;
+      await saveList("todos", items);
+      return { completed: hit.text };
+    }
+    case "list_todos":
+      return (await loadList("todos")).filter((t) => !t.done).map((t) => t.text);
+    case "set_reminder": {
+      const minutes = Math.min(1440, Math.max(1, Number(args.minutes) || 0));
+      const id = newId();
+      const items = await loadList("reminders");
+      items.push({ id, text, at: Date.now(), due: Date.now() + minutes * 60_000 });
+      await saveList("reminders", items);
+      await chrome.alarms.create(`reminder:${id}`, { delayInMinutes: minutes });
+      return { reminderInMinutes: minutes };
+    }
+  }
+  return undefined;
+}
+
+const LIST_TOOLS = new Set(["remember", "forget", "add_note", "list_notes", "add_todo", "complete_todo", "list_todos", "set_reminder"]);
+const HANDS_ON = new Set(["click", "type_text", "fill_form", "press_key", "hover"]);
+
 async function runTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  if (LIST_TOOLS.has(name)) return runListTool(name, args);
   // Chrome-level tools don't need a page.
   if (name === "list_tabs") {
     const tabs = await chrome.tabs.query({});
@@ -250,10 +307,21 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<unk
   const tab = await activeTab();
   const tabId = tab.id!;
 
+  if (HANDS_ON.has(name)) {
+    const host = tab.url ? new URL(tab.url).hostname : "";
+    if (siteRules(await loadSettings(), host).noControl) {
+      throw new Error(`The user turned off clicking and typing on ${host}. Tell them what to do instead, or point_at it.`);
+    }
+  }
+
   switch (name) {
     case "read_page":
     case "scroll":
     case "fill_form":
+    case "get_page_text":
+    case "get_selection":
+    case "point_at":
+    case "clear_highlights":
       return act(tabId, name, args);
     case "click":
       return click(tabId, args);
@@ -297,6 +365,88 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<unk
       throw new Error(`Unknown tool: ${name}`);
   }
 }
+
+// --- Reminders: Tekkie pops up on the page you're on, and Chrome shows a notification. ----------
+
+async function sayInActiveTab(text: string, emote = "surprised") {
+  try {
+    const tab = await activeTab();
+    await chrome.tabs.sendMessage(tab.id!, { type: "tekkie:say", text, emote });
+  } catch {
+    /* no page with Tekkie in front: the notification is enough */
+  }
+}
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (!alarm.name.startsWith("reminder:")) return;
+  const id = alarm.name.slice("reminder:".length);
+  const items = await loadList("reminders");
+  const item = items.find((r) => r.id === id);
+  if (!item) return;
+  await saveList("reminders", items.filter((r) => r.id !== id));
+  chrome.notifications.create(`tekkie-${id}`, {
+    type: "basic",
+    iconUrl: chrome.runtime.getURL("icons/128.png"),
+    title: "Tekkie reminder",
+    message: item.text,
+    priority: 2,
+  });
+  void sayInActiveTab(`⏰ Reminder: ${item.text}`);
+});
+
+// --- Right-click on selected text: ask Tekkie about it. --------------------------------------
+
+const ASK_MENU: Record<string, (text: string) => string> = {
+  "tekkie-explain": (t) => `Explain this simply:\n\n${t}`,
+  "tekkie-summarize": (t) => `Summarize this in a few sentences:\n\n${t}`,
+  "tekkie-translate": (t) => `Translate this into my language and say it:\n\n${t}`,
+  "tekkie-read": (t) => `Read this out loud, exactly as written:\n\n${t}`,
+};
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({ id: "tekkie", title: "Ask Tekkie", contexts: ["selection"] });
+    const labels: Record<string, string> = {
+      "tekkie-explain": "Explain this",
+      "tekkie-summarize": "Summarize this",
+      "tekkie-translate": "Translate this",
+      "tekkie-read": "Read this aloud",
+    };
+    for (const [id, title] of Object.entries(labels)) chrome.contextMenus.create({ id, parentId: "tekkie", title, contexts: ["selection"] });
+  });
+});
+
+/** Sends a request to the voice engine, starting a conversation if needed. */
+async function askTekkie(text: string) {
+  await ensureOffscreen();
+  await chrome.runtime.sendMessage({ type: "tekkie:ask", text });
+}
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  const make = ASK_MENU[String(info.menuItemId)];
+  if (!make || !info.selectionText) return;
+  if (tab?.id) void chrome.tabs.sendMessage(tab.id, { type: "tekkie:show" }).catch(() => {});
+  void askTekkie(make(info.selectionText.slice(0, 6000)));
+});
+
+// --- Keyboard shortcuts (change them at chrome://extensions/shortcuts). -------------------------
+
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === "toggle-talk") {
+    await ensureOffscreen();
+    await chrome.runtime.sendMessage({ type: "tekkie:toggle-talk" });
+  } else if (command === "toggle-tekkie") {
+    const { enabled } = await loadSettings();
+    await chrome.storage.local.set({ enabled: !enabled });
+  }
+});
+
+// The wake word runs in the voice engine; tell it when the setting changes.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.wakeWord) {
+    void ensureOffscreen().then(() => chrome.runtime.sendMessage({ type: "tekkie:wake-word", on: changes.wakeWord.newValue === true }).catch(() => {}));
+  }
+});
 
 /** A JPEG of the visible tab, scaled down so it is quick to send. Returns base64 without the data: prefix. */
 async function captureScreen(): Promise<string> {
@@ -342,7 +492,8 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; create?: boolean; na
     );
     return true;
   } else if (msg?.type === "tekkie:settings") {
-    void loadSettings().then(sendResponse);
+    // The voice engine can't read storage itself: hand it the settings plus what Tekkie remembers.
+    void Promise.all([loadSettings(), loadList("memory")]).then(([settings, memory]) => sendResponse({ ...settings, memory: memory.map((m) => m.text) }));
     return true;
   } else if (msg?.type === "tekkie:tool") {
     runTool(String(msg.name), msg.args ?? {}).then(

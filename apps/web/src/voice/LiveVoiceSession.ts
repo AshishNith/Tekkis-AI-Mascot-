@@ -3,11 +3,34 @@ import { MicCapture, PcmPlayer, int16ToBase64 } from "./audio";
 
 export type VoiceState = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
+export interface PlanStep {
+  text: string;
+  status: "todo" | "doing" | "done" | "failed";
+}
+
+/** The AI's checklist for a multi-step job. */
+export interface TaskPlan {
+  title?: string;
+  steps: PlanStep[];
+}
+
+export interface HistoryLine {
+  who: "user" | "tekkie";
+  text: string;
+  at: number;
+}
+
 export interface VoiceEvents {
   state: (state: VoiceState) => void;
   /** Live captions. `final` marks the end of a caption line. */
   caption: (who: "user" | "tekkie", text: string, final: boolean) => void;
   error: (message: string) => void;
+  /** The AI asked Tekkie to show a feeling (laugh, celebrate...). */
+  emote: (kind: string) => void;
+  /** The AI's checklist for the current task; null clears it. */
+  plan: (plan: TaskPlan | null) => void;
+  /** Earlier lines of the conversation, sent when a tab joins mid-chat. */
+  history: (lines: HistoryLine[]) => void;
 }
 
 /** What the widget needs from a voice backend: the in-page session below, or the extension's remote one. */
@@ -19,6 +42,8 @@ export interface VoiceController {
   start(): Promise<void>;
   stop(): void;
   sendText(text: string): void;
+  /** Hold-to-talk: while muted the conversation stays open but the mic isn't sent. */
+  setMicMuted?(muted: boolean): void;
 }
 
 /** A tool result that also shows the model a picture (e.g. a screenshot). */
@@ -47,13 +72,30 @@ export class LiveVoiceSession implements VoiceController {
   private mic?: MicCapture;
   private player = new PcmPlayer();
   private state: VoiceState = "idle";
-  private listeners: { [K in keyof VoiceEvents]: VoiceEvents[K][] } = { state: [], caption: [], error: [] };
+  private listeners: { [K in keyof VoiceEvents]: VoiceEvents[K][] } = {
+    state: [],
+    caption: [],
+    error: [],
+    emote: [],
+    plan: [],
+    history: [],
+  };
   private userLine = "";
   private tekkieLine = "";
   private turnComplete = false;
   private micLevel = 0;
 
-  constructor(private apiBase = "", private tools?: VoiceTools) {}
+  /** While muted (hold-to-talk released) the mic keeps running but nothing is sent. */
+  micMuted = false;
+
+  /**
+   * @param tokenRequest Session options for the server (voice, language, tutor mode, memory).
+   */
+  constructor(
+    private apiBase = "",
+    private tools?: VoiceTools,
+    private tokenRequest: Record<string, unknown> = {},
+  ) {}
 
   on<K extends keyof VoiceEvents>(event: K, fn: VoiceEvents[K]) {
     this.listeners[event].push(fn);
@@ -117,7 +159,8 @@ export class LiveVoiceSession implements VoiceController {
       });
 
       this.mic = new MicCapture((pcm, level) => {
-        this.micLevel = level;
+        this.micLevel = this.micMuted ? 0 : level;
+        if (this.micMuted) return;
         this.session?.sendRealtimeInput({ audio: { data: int16ToBase64(pcm), mimeType: "audio/pcm;rate=16000" } });
       });
       await this.mic.start();
@@ -125,6 +168,10 @@ export class LiveVoiceSession implements VoiceController {
     } catch (err) {
       this.fail(describeError(err));
     }
+  }
+
+  setMicMuted(muted: boolean) {
+    this.micMuted = muted;
   }
 
   /** Type instead of talking. */
@@ -154,7 +201,11 @@ export class LiveVoiceSession implements VoiceController {
   }
 
   private async fetchToken(): Promise<TokenResponse> {
-    const res = await fetch(`${this.apiBase}/api/live-token`, { method: "POST" });
+    const res = await fetch(`${this.apiBase}/api/live-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(this.tokenRequest),
+    });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error ?? `Token request failed (${res.status})`);
     return body as TokenResponse;

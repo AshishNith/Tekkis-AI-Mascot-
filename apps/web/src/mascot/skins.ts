@@ -12,6 +12,8 @@ export interface Skin {
   sole: number;
   accessory: Accessory;
   accessoryColor: number;
+  /** Bond level (from looking after Tekkie) needed to wear this skin. */
+  unlockLevel?: number;
 }
 
 export const SKINS: Skin[] = [
@@ -38,6 +40,7 @@ export const SKINS: Skin[] = [
     sole: 0xffffff,
     accessory: "cap",
     accessoryColor: 0xff6b35,
+    unlockLevel: 2,
   },
   {
     id: "halloween",
@@ -50,6 +53,7 @@ export const SKINS: Skin[] = [
     sole: 0x111111,
     accessory: "witch-hat",
     accessoryColor: 0x2a1840,
+    unlockLevel: 3,
   },
   {
     id: "festive",
@@ -62,7 +66,39 @@ export const SKINS: Skin[] = [
     sole: 0xffffff,
     accessory: "santa-hat",
     accessoryColor: 0xd91f35,
+    unlockLevel: 4,
+  },
+  {
+    id: "galaxy",
+    name: "Galaxy",
+    body: 0x2b2d7a,
+    visor: 0x05051a,
+    glow: 0xff7cf5,
+    sneaker: 0x7cf5ff,
+    sneakerStripe: 0xff7cf5,
+    sole: 0x111133,
+    accessory: "none",
+    accessoryColor: 0,
+    unlockLevel: 5,
+  },
+  {
+    id: "gold",
+    name: "Gold",
+    body: 0xf2c14e,
+    visor: 0x2a1b05,
+    glow: 0xffffff,
+    sneaker: 0x111111,
+    sneakerStripe: 0xf2c14e,
+    sole: 0xffffff,
+    accessory: "cap",
+    accessoryColor: 0x111111,
+    unlockLevel: 6,
   },
 ];
+
+/** A skin made from the user's own colours (always available). */
+export function customSkin(colors: { body: number; visor: number; glow: number; sneaker: number }): Skin {
+  return { id: "custom", name: "Custom", ...colors, sneakerStripe: 0xffffff, sole: 0xf4f4f4, accessory: "none", accessoryColor: 0 };
+}
 
 export const DEFAULT_SKIN = SKINS[0];

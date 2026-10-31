@@ -13,6 +13,12 @@ const STATE_GLOW: Partial<Record<VoiceState, number>> = {
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const DANCE_SECONDS = 4.2;
 
+/** Short full-body reactions, triggered by the widget or by the AI through its emote tool. */
+export type Emote = "laugh" | "celebrate" | "surprised" | "sad" | "love" | "eat";
+export const EMOTES: Emote[] = ["laugh", "celebrate", "surprised", "sad", "love", "eat"];
+const EMOTE_SECONDS: Record<Emote, number> = { laugh: 2.2, celebrate: 2.6, surprised: 1.6, sad: 2.6, love: 2.4, eat: 2.0 };
+const CONFETTI_COLORS = [0xff4f81, 0xffd84d, 0x4dff88, 0x7ff6ff, 0x9d7bff, 0xff9a3c];
+
 function smooth(current: number, target: number, rate: number, dt: number) {
   return current + (target - current) * (1 - Math.exp(-rate * dt));
 }
@@ -65,6 +71,7 @@ export class TekkieCharacter {
   private arms: THREE.Group[] = [];
   private legs: Leg[] = [];
   private shadow!: THREE.Mesh;
+  private confetti: { mesh: THREE.Mesh; vel: THREE.Vector3; spin: THREE.Vector3 }[] = [];
   private accessories = new Map<Accessory, THREE.Group>();
 
   private mats = {
@@ -112,6 +119,14 @@ export class TekkieCharacter {
   private hovered = false;
   private hoverBlend = 0;
   private happy = 0;
+  // Emotes, sleepiness (after a long idle) and sitting (perched on something on the page).
+  private emoteKind: Emote | null = null;
+  private emoteT = 0;
+  private sleepy = false;
+  private sleepBlend = 0;
+  private sitting = false;
+  private sitBlend = 0;
+  private confettiT = -1;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "low-power" });
@@ -280,6 +295,17 @@ export class TekkieCharacter {
     this.shadow.rotation.x = -Math.PI / 2;
     this.shadow.position.y = -1.62;
     this.rig.add(this.shadow);
+
+    const bit = new THREE.PlaneGeometry(0.09, 0.05);
+    for (let i = 0; i < 28; i++) {
+      const mesh = new THREE.Mesh(
+        bit,
+        new THREE.MeshBasicMaterial({ color: CONFETTI_COLORS[i % CONFETTI_COLORS.length], side: THREE.DoubleSide, transparent: true }),
+      );
+      mesh.visible = false;
+      this.scene.add(mesh);
+      this.confetti.push({ mesh, vel: new THREE.Vector3(), spin: new THREE.Vector3() });
+    }
   }
 
   private buildSneaker(side: number) {
@@ -416,6 +442,35 @@ export class TekkieCharacter {
     this.danceT = 0;
   }
 
+  /** A short full-body reaction. */
+  emote(kind: Emote) {
+    this.emoteKind = kind;
+    this.emoteT = 0;
+    if (kind === "celebrate") this.burstConfetti();
+    if (kind === "surprised") this.antennaVel += 6;
+  }
+
+  /** Dozing off after a long time with nothing happening. */
+  setSleepy(on: boolean) {
+    this.sleepy = on;
+  }
+
+  /** Sitting on the edge of something, legs dangling. */
+  setSitting(on: boolean) {
+    this.sitting = on;
+  }
+
+  private burstConfetti() {
+    this.confettiT = 0;
+    for (const c of this.confetti) {
+      c.mesh.visible = true;
+      c.mesh.position.set((Math.random() - 0.5) * 0.4, 1.1, (Math.random() - 0.5) * 0.4);
+      c.vel.set((Math.random() - 0.5) * 3.2, 2.6 + Math.random() * 2.2, (Math.random() - 0.5) * 1.5);
+      c.spin.set(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+      (c.mesh.material as THREE.MeshBasicMaterial).opacity = 1;
+    }
+  }
+
   get dancing() {
     return this.danceT >= 0;
   }
@@ -445,6 +500,22 @@ export class TekkieCharacter {
     const facing = this.walkDir !== 0 ? this.walkDir * 0.95 : 0;
     this.faceYaw = smooth(this.faceYaw, facing, 7, dt);
 
+    // Emote clock: `e` is 0..1..0 over the emote so poses ease in and out.
+    let e = 0;
+    const emote = this.emoteKind;
+    if (emote) {
+      this.emoteT += dt;
+      const len = EMOTE_SECONDS[emote];
+      e = Math.min(1, this.emoteT / 0.2) * Math.min(1, (len - this.emoteT) / 0.3);
+      if (this.emoteT > len) this.emoteKind = null;
+    }
+    const is = (k: Emote) => (emote === k ? Math.max(0, e) : 0);
+    const laugh = is("laugh"), celebrate = is("celebrate"), surprised = is("surprised"), sad = is("sad"), love = is("love"), eat = is("eat");
+    this.sleepBlend = smooth(this.sleepBlend, this.sleepy && s === "idle" ? 1 : 0, 2.5, dt);
+    const sleep = this.sleepBlend;
+    this.sitBlend = smooth(this.sitBlend, this.sitting ? 1 : 0, 8, dt);
+    const sit = this.sitBlend;
+
     // Dance clock and hover blend.
     let dance = 0;
     if (this.danceT >= 0) {
@@ -454,7 +525,7 @@ export class TekkieCharacter {
     }
     this.hoverBlend = smooth(this.hoverBlend, this.hovered ? 1 : 0, 8, dt);
     const hover = this.hoverBlend;
-    this.happy = smooth(this.happy, Math.max(hover * 0.85, dance, this.waveT >= 0 ? 0.6 : 0), 8, dt);
+    this.happy = smooth(this.happy, Math.max(hover * 0.85, dance, this.waveT >= 0 ? 0.6 : 0, laugh, celebrate, love, eat * 0.8), 8, dt);
 
     // Hover and squash.
     let squash = talk * 0.06;
@@ -463,12 +534,18 @@ export class TekkieCharacter {
       squash += Math.sin(this.pokeT * 18) * Math.exp(-this.pokeT * 5) * 0.12;
       if (this.pokeT > 1.2) this.pokeT = -1;
     }
-    const bounce = Math.abs(Math.sin(phase)) * 0.075 * stride + Math.abs(Math.sin(t * 7)) * 0.17 * dance;
-    this.float.position.y = Math.sin(t * 1.7) * 0.08 * (1 - stride) * (1 - dance) + bounce + talk * 0.05 + Math.sin(t * 8) * 0.012 * hover;
+    const bounce =
+      Math.abs(Math.sin(phase)) * 0.075 * stride +
+      Math.abs(Math.sin(t * 7)) * 0.17 * dance +
+      Math.abs(Math.sin(this.emoteT * 9)) * 0.28 * celebrate +
+      Math.abs(Math.sin(this.emoteT * 16)) * 0.05 * laugh;
+    const still = (1 - stride) * (1 - dance) * (1 - sit) * (1 - sleep * 0.7);
+    this.float.position.y =
+      Math.sin(t * (1.7 - sleep * 0.9)) * 0.08 * still + bounce + talk * 0.05 + Math.sin(t * 8) * 0.012 * hover - sad * 0.08 - sit * 0.22;
     this.float.scale.set(1 - squash * 0.5, 1 + squash, 1 - squash * 0.5);
     const lift = Math.min(1, Math.max(0, (this.float.position.y + 0.1) / 0.3));
     this.shadow.scale.setScalar(1 - lift * 0.15);
-    (this.shadow.material as THREE.MeshBasicMaterial).opacity = 0.9 - lift * 0.3;
+    (this.shadow.material as THREE.MeshBasicMaterial).opacity = (0.9 - lift * 0.3) * (1 - sit); // no floor under a perch
 
     // Follow the pointer (harder when hovered); when thinking, glance up and to the side.
     const lookTarget = thinking ? new THREE.Vector2(0.55, 0.7) : this.look;
@@ -482,8 +559,11 @@ export class TekkieCharacter {
       this.faceYaw +
       (s === "connecting" ? Math.sin(t * 6) * 0.08 : 0) +
       Math.sin(t * 3.5) * 0.6 * dance;
-    this.rig.rotation.x = -ly * (0.18 + hover * 0.14) + (s === "listening" ? 0.06 : 0) + stride * 0.07 + hover * 0.05;
-    this.rig.rotation.z = Math.sin(t * 1.1) * 0.03 - lx * 0.05 + Math.sin(phase) * 0.035 * stride + Math.sin(t * 7) * 0.13 * dance;
+    this.rig.rotation.x =
+      -ly * (0.18 + hover * 0.14) + (s === "listening" ? 0.06 : 0) + stride * 0.07 + hover * 0.05 + sad * 0.25 + sleep * 0.22 - surprised * 0.2 + laugh * 0.1;
+    this.rig.rotation.z =
+      Math.sin(t * 1.1) * 0.03 - lx * 0.05 + Math.sin(phase) * 0.035 * stride + Math.sin(t * 7) * 0.13 * dance +
+      Math.sin(this.emoteT * 30) * 0.05 * laugh + Math.sin(t * 0.6) * 0.12 * sleep + Math.sin(this.emoteT * 4) * 0.08 * love;
 
     // Eyes slide across the visor toward the look target and blink now and then.
     this.nextBlink -= dt;
@@ -498,24 +578,32 @@ export class TekkieCharacter {
       lid = Math.max(lid, 0.08);
       if (this.blinkT > 0.16) this.blinkT = -1;
     }
-    const eyeOpen = s === "listening" ? 1.15 : s === "error" ? 0.6 : 1;
+    const eyeOpen = (s === "listening" ? 1.15 : s === "error" ? 0.6 : 1) * (1 + surprised * 0.45) * (1 - sad * 0.35) * (1 - sleep * 0.85);
     this.eyes.forEach((eye, i) => {
       const side = i === 0 ? -1 : 1;
       this.placeOnFace(eye, Math.PI / 2 + side * 0.3 - lx * 0.14, 1.27 - ly * 0.1);
       // Happy eyes squint into little arcs.
-      eye.scale.set(1 + this.happy * 0.25, lid * eyeOpen * (1 - this.happy * 0.5), 1);
+      eye.scale.set((1 + this.happy * 0.25) * (1 + surprised * 0.25) * (1 + love * 0.2 * Math.abs(Math.sin(t * 8))), lid * eyeOpen * (1 - this.happy * 0.5), 1);
+      eye.rotation.z = side * sad * 0.35; // sad eyes slope down at the outside
     });
-    this.mats.cheek.opacity = this.happy * 0.55;
+    this.mats.cheek.opacity = Math.min(0.9, this.happy * 0.55 + love * 0.35);
+    // Eye colour follows the mood: pink when in love, blue when sad.
+    const eyeHex = love > 0.3 ? 0xff6fb5 : sad > 0.3 ? 0x7fb2ff : this.skin.glow;
+    this.mats.glow.color.setHex(eyeHex);
+    this.mats.eyeHalo.color.setHex(eyeHex);
 
     // Mouth: smile at rest, an open oval that tracks loudness while talking.
-    this.talkMouth.visible = speaking && talk > 0.1;
+    const chomp = Math.max(laugh * (0.5 + 0.5 * Math.abs(Math.sin(this.emoteT * 14))), eat * Math.abs(Math.sin(this.emoteT * 9)), surprised * 0.7);
+    const mouthOpen = Math.max(speaking ? talk : 0, chomp);
+    this.talkMouth.visible = mouthOpen > 0.1;
     this.smile.visible = !this.talkMouth.visible;
-    this.talkMouth.children[0].scale.set(0.1 + talk * 0.04, 0.035 + talk * 0.09, 0.04);
-    this.smile.children[0].rotation.z = s === "error" ? 0 : Math.PI;
+    const round = surprised > 0.3 ? 1 : 0; // a little "o"
+    this.talkMouth.children[0].scale.set(0.1 + mouthOpen * 0.04 - round * 0.03, 0.035 + mouthOpen * 0.09, 0.04);
+    this.smile.children[0].rotation.z = s === "error" || sad > 0.3 ? 0 : Math.PI;
     this.smile.scale.setScalar((s === "listening" ? 0.85 : 1) * (1 + this.happy * 0.35));
 
     // Antenna colour and pulse by state.
-    const glow = hover > 0.5 && !STATE_GLOW[s] ? 0xff9ad0 : STATE_GLOW[s] ?? this.skin.glow;
+    const glow = celebrate > 0.2 ? 0xffd84d : love > 0.2 ? 0xff6fb5 : hover > 0.5 && !STATE_GLOW[s] ? 0xff9ad0 : STATE_GLOW[s] ?? this.skin.glow;
     this.mats.antenna.color.setHex(glow);
     this.mats.halo.color.setHex(glow);
     let pulse = 1 + Math.sin(t * 3) * 0.08 + hover * 0.3 * Math.abs(Math.sin(t * 6));
@@ -528,7 +616,7 @@ export class TekkieCharacter {
     this.lastRigRotY = this.rig.rotation.y;
     this.antennaVel += (-this.antennaSway * 60 - this.antennaVel * 6) * dt - turn * 4 + Math.cos(phase * 2) * stride * dt * 3;
     this.antennaSway += this.antennaVel * dt;
-    this.antenna.rotation.z = this.antennaSway + Math.sin(t * 1.3) * 0.05;
+    this.antenna.rotation.z = this.antennaSway + Math.sin(t * 1.3) * 0.05 + sad * 0.5 + sleep * 0.35;
 
     // Arms: gentle sway, a swing opposite the legs when walking, talking gestures, and a wave.
     this.arms.forEach((arm, i) => {
@@ -538,6 +626,24 @@ export class TekkieCharacter {
       if (thinking && side === 1) {
         rz = 2.3; // hand up to scratch its head
         rx = -0.6;
+      }
+      if (celebrate > 0) {
+        rz = THREE.MathUtils.lerp(rz, side * (2.6 + Math.sin(this.emoteT * 12 + i) * 0.3), celebrate);
+        rx = THREE.MathUtils.lerp(rx, 0, celebrate);
+      }
+      if (laugh > 0) {
+        rz = THREE.MathUtils.lerp(rz, side * 0.15, laugh); // hands on the belly
+        rx = THREE.MathUtils.lerp(rx, -0.9 + Math.sin(this.emoteT * 16) * 0.1, laugh);
+      }
+      if (surprised > 0) rz = THREE.MathUtils.lerp(rz, side * 1.3, surprised);
+      if (sad > 0 || sleep > 0) rz = THREE.MathUtils.lerp(rz, side * 0.12, Math.max(sad, sleep));
+      if (love > 0) {
+        rz = THREE.MathUtils.lerp(rz, side * 0.5, love); // hugging itself
+        rx = THREE.MathUtils.lerp(rx, -1.2, love);
+      }
+      if (eat > 0 && side === 1) {
+        rz = THREE.MathUtils.lerp(rz, 1.9, eat); // hand to mouth
+        rx = THREE.MathUtils.lerp(rx, -1.1, eat);
       }
       if (dance > 0) {
         rz = THREE.MathUtils.lerp(rz, side * (2.1 + Math.sin(t * 7 + i * Math.PI) * 0.55), dance);
@@ -561,9 +667,30 @@ export class TekkieCharacter {
       const p = phase + (i === 0 ? 0 : Math.PI);
       const dangle = Math.sin(t * 1.7 - 0.6 + i * 0.8) * 0.12 + talk * 0.1;
       const stepDance = Math.sin(t * 7 + i * Math.PI);
-      leg.hip.rotation.x = THREE.MathUtils.lerp(dangle, -Math.sin(p) * 0.7, stride) * (1 - dance) + stepDance * 0.45 * dance;
-      leg.knee.rotation.x = Math.max(0, Math.cos(p)) * 0.95 * stride * (1 - dance) + Math.max(0, stepDance) * 0.7 * dance;
+      const standHip = THREE.MathUtils.lerp(dangle, -Math.sin(p) * 0.7, stride) * (1 - dance) + stepDance * 0.45 * dance;
+      const standKnee = Math.max(0, Math.cos(p)) * 0.95 * stride * (1 - dance) + Math.max(0, stepDance) * 0.7 * dance;
+      // Sitting: thighs forward, shins hanging down and swinging a little.
+      const kick = Math.sin(t * 2.2 + i * Math.PI) * 0.18;
+      leg.hip.rotation.x = THREE.MathUtils.lerp(standHip, -1.35, sit);
+      leg.knee.rotation.x = THREE.MathUtils.lerp(standKnee, 1.3 + kick, sit);
     });
+
+    // Confetti falls with a bit of drag and fades out.
+    if (this.confettiT >= 0) {
+      this.confettiT += dt;
+      for (const c of this.confetti) {
+        c.vel.y -= 6 * dt;
+        c.vel.multiplyScalar(1 - 0.8 * dt);
+        c.mesh.position.addScaledVector(c.vel, dt);
+        c.mesh.rotation.x += c.spin.x * dt;
+        c.mesh.rotation.y += c.spin.y * dt;
+        (c.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - this.confettiT / 2.2);
+      }
+      if (this.confettiT > 2.2) {
+        this.confettiT = -1;
+        for (const c of this.confetti) c.mesh.visible = false;
+      }
+    }
 
     this.renderer.render(this.scene, this.camera);
   }
@@ -574,6 +701,7 @@ export class TekkieCharacter {
       if (o instanceof THREE.Mesh) o.geometry.dispose();
     });
     Object.values(this.mats).forEach((m) => m.dispose());
+    for (const c of this.confetti) (c.mesh.material as THREE.Material).dispose();
     this.envMap.dispose();
   }
 }

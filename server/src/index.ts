@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { config } from "./config.js";
-import { createLiveToken } from "./live-token.js";
+import { createLiveToken, LANGUAGES, VOICES } from "./live-token.js";
 
 // Each token opens a paid voice session, so cap how many one client can mint.
 const TOKEN_LIMIT = 20;
@@ -26,6 +26,30 @@ function originAllowed(origin: string | undefined): boolean {
   if (config.allowedOrigins.includes(origin)) return true;
   // With no allow-list (local dev) the Chrome extension's pages may also ask for tokens.
   return config.allowedOrigins.length === 0 && /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?|chrome-extension:\/\/[a-p]{32})$/.test(origin);
+}
+
+/** Reads a small JSON request body; anything too big or malformed counts as empty. */
+function readJson(req: IncomingMessage, limit = 16_000): Promise<Record<string, unknown>> {
+  return new Promise((resolve) => {
+    let size = 0;
+    const chunks: Buffer[] = [];
+    req.on("data", (c: Buffer) => {
+      size += c.length;
+      if (size > limit) {
+        req.destroy();
+        resolve({});
+      } else chunks.push(c);
+    });
+    req.on("end", () => {
+      try {
+        const v = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+        resolve(v && typeof v === "object" && !Array.isArray(v) ? v : {});
+      } catch {
+        resolve({});
+      }
+    });
+    req.on("error", () => resolve({}));
+  });
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown, origin?: string) {
@@ -74,14 +98,19 @@ const server = createServer(async (req, res) => {
     }
 
     if (path === "/api/health" && req.method === "GET") {
-      return sendJson(res, 200, { ok: true, voiceConfigured: Boolean(config.geminiApiKey), model: config.liveModel }, origin);
+      return sendJson(
+        res,
+        200,
+        { ok: true, voiceConfigured: Boolean(config.geminiApiKey), model: config.liveModel, voices: VOICES, languages: LANGUAGES },
+        origin,
+      );
     }
 
     if (path === "/api/live-token" && req.method === "POST") {
       const ip = req.socket.remoteAddress ?? "unknown";
       if (rateLimited(ip)) return sendJson(res, 429, { error: "Too many voice sessions, try again later." }, origin);
       try {
-        return sendJson(res, 200, await createLiveToken(), origin);
+        return sendJson(res, 200, await createLiveToken(await readJson(req)), origin);
       } catch (err) {
         console.error("[live-token]", err);
         const message = err instanceof Error ? err.message : "Could not create voice token";

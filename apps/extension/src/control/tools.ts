@@ -3,6 +3,25 @@ import type { FunctionDeclaration } from "@google/genai";
 /** The browser actions Gemini may call. Executed by the background worker and the page's content script. */
 export const BROWSER_TOOLS: FunctionDeclaration[] = [
   {
+    name: "get_page_text",
+    description: "Get the readable text of the current page (the main article), to summarize, explain, translate or read it aloud.",
+  },
+  {
+    name: "get_selection",
+    description: "Get the text the user has highlighted on the page.",
+  },
+  {
+    name: "point_at",
+    description:
+      "Show the user where to click: a glowing ring and arrow on an element (id from read_page) with a short note. Stays until clear_highlights or the next point_at. Use it to guide step by step.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: { id: { type: "integer" }, note: { type: "string", description: "Very short hint, e.g. 'Click here to sign up'" } },
+      required: ["id"],
+    },
+  },
+  { name: "clear_highlights", description: "Remove the guide ring and arrow from the page." },
+  {
     name: "read_page",
     description:
       "Look at the page the user is on. Returns its URL, title, a text excerpt and a numbered list of clickable/typable elements. Call this before click or type_text, and again after the page changes.",
@@ -113,6 +132,74 @@ export const BROWSER_TOOLS: FunctionDeclaration[] = [
       type: "object",
       properties: { id: { type: "integer" }, confirmed: { type: "boolean", description: "True only after the user said yes" } },
       required: ["id"],
+    },
+  },
+];
+
+/** Tools that don't touch web pages, so they stay on even when browser control is off. */
+export const COMPANION_TOOLS: FunctionDeclaration[] = [
+  {
+    name: "emote",
+    description: "Show a feeling with Tekkie's body: laugh at jokes, celebrate success, look surprised, sad, in love, or munch a snack.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: { feeling: { type: "string", enum: ["laugh", "celebrate", "surprised", "sad", "love", "eat"] } },
+      required: ["feeling"],
+    },
+  },
+  {
+    name: "show_plan",
+    description: "Show a checklist of steps for a multi-step task. Call before starting work on a job with three or more steps.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: { title: { type: "string" }, steps: { type: "array", items: { type: "string" }, description: "Short steps, 2 to 8" } },
+      required: ["steps"],
+    },
+  },
+  {
+    name: "update_plan",
+    description: "Mark a step of the current plan as doing, done or failed (steps are numbered from 1).",
+    parametersJsonSchema: {
+      type: "object",
+      properties: { step: { type: "integer" }, status: { type: "string", enum: ["doing", "done", "failed"] } },
+      required: ["step", "status"],
+    },
+  },
+  { name: "clear_plan", description: "Remove the plan checklist when the task is abandoned." },
+  {
+    name: "remember",
+    description: "Remember one short fact about the user for future chats (name, likes, what they are working on). Never secrets.",
+    parametersJsonSchema: { type: "object", properties: { fact: { type: "string" } }, required: ["fact"] },
+  },
+  {
+    name: "forget",
+    description: "Forget remembered facts that match these words, or everything if what is 'everything'.",
+    parametersJsonSchema: { type: "object", properties: { what: { type: "string" } }, required: ["what"] },
+  },
+  {
+    name: "add_note",
+    description: "Save a note or quote for the user.",
+    parametersJsonSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
+  },
+  { name: "list_notes", description: "List the user's saved notes." },
+  {
+    name: "add_todo",
+    description: "Add an item to the user's to-do list.",
+    parametersJsonSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
+  },
+  {
+    name: "complete_todo",
+    description: "Tick off a to-do (by the words in it).",
+    parametersJsonSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
+  },
+  { name: "list_todos", description: "List the user's to-dos." },
+  {
+    name: "set_reminder",
+    description: "Remind the user about something after a number of minutes (1 to 1440). Tekkie pops up and a notification shows.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: { minutes: { type: "number" }, text: { type: "string" } },
+      required: ["minutes", "text"],
     },
   },
 ];

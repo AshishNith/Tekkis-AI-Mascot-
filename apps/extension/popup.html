@@ -4,54 +4,133 @@
     <meta charset="UTF-8" />
     <title>Tekkie</title>
     <style>
-      :root { --bg: #fff; --text: #1d1838; --muted: #6b6690; --border: rgba(40, 30, 90, 0.18); --accent: #7c5cff; }
-      @media (prefers-color-scheme: dark) { :root { --bg: #1f1b36; --text: #f1efff; --muted: #a7a2c9; --border: rgba(255, 255, 255, 0.18); } }
-      body { width: 300px; margin: 0; padding: 16px; box-sizing: border-box; font: 14px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--text); }
-      h1 { font-size: 18px; margin: 0 0 12px; }
+      :root { --bg: #fff; --text: #1d1838; --muted: #6b6690; --border: rgba(40, 30, 90, 0.18); --accent: #7c5cff; --danger: #e0364f; --chip: rgba(124, 92, 255, 0.08); }
+      @media (prefers-color-scheme: dark) { :root { --bg: #1f1b36; --text: #f1efff; --muted: #a7a2c9; --border: rgba(255, 255, 255, 0.18); --chip: rgba(255, 255, 255, 0.06); } }
+      body { width: 320px; margin: 0; padding: 14px 16px 16px; box-sizing: border-box; font: 14px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+      h1 { font-size: 18px; margin: 0; }
       .hero { display: flex; flex-direction: column; align-items: center; margin: -4px 0 4px; }
-      .hero h1 { margin: 0; }
-      #mascot { width: 180px; height: 190px; cursor: pointer; }
-      label.row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 14px 0 6px; }
-      input[type="text"] { width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: inherit; font: inherit; }
-      button { font: inherit; border: 1px solid var(--border); background: transparent; color: inherit; border-radius: 999px; padding: 5px 12px; cursor: pointer; }
-      button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-      #skins { display: flex; flex-wrap: wrap; gap: 6px; }
-      #status { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
-      #status.ok { color: #1a8a4a; } #status.warn { color: #e0364f; }
-      #mic { margin-top: 14px; width: 100%; }
-      .wide { width: 100%; }
-      .actions { display: flex; gap: 8px; margin-bottom: 10px; }
+      #mascot { width: 170px; height: 175px; cursor: pointer; }
+      .actions { display: flex; gap: 8px; margin-bottom: 8px; }
       .actions button { flex: 1; padding: 9px 12px; font-weight: 600; }
-      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-      button.talk[aria-pressed="true"] { background: #e0364f; border-color: #e0364f; color: #fff; }
-      .caption { min-height: 2.8em; margin: 0 0 8px; font-size: 13px; color: var(--muted); }
-      .say { display: flex; gap: 6px; margin-bottom: 12px; }
-      .say input { flex: 1; }
-      details { border-top: 1px solid var(--border); padding-top: 10px; }
-      summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
-      .note { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+      button, select, input[type="text"], input[type="password"] { font: inherit; color: inherit; }
+      button { border: 1px solid var(--border); background: transparent; border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
+      button.primary, button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button.talk[aria-pressed="true"] { background: var(--danger); border-color: var(--danger); }
+      button.danger { color: var(--danger); border-color: var(--danger); }
+      input[type="text"], input[type="password"], select { width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; }
+      select option { color: #1d1838; }
+      .caption { min-height: 2.6em; margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+      .say { display: flex; gap: 6px; margin-bottom: 10px; }
+      details { border-top: 1px solid var(--border); padding: 8px 0 4px; }
+      summary { cursor: pointer; font-weight: 600; padding: 2px 0 6px; }
+      summary small { font-weight: 400; color: var(--muted); }
+      label.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 10px; }
+      label.row small, .note { display: block; font-size: 12px; color: var(--muted); }
+      .note { margin: 4px 0 8px; }
+      h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 12px 0 6px; }
+      .wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+      .colors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; font-size: 11px; color: var(--muted); }
+      .colors input { width: 100%; height: 30px; border: 1px solid var(--border); border-radius: 8px; padding: 0; background: none; }
+      .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      ul.items { list-style: none; margin: 4px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 150px; overflow: auto; }
+      ul.items li { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 8px; background: var(--chip); font-size: 13px; }
+      ul.items li span { flex: 1; overflow-wrap: anywhere; }
+      ul.items li.done span { text-decoration: line-through; color: var(--muted); }
+      ul.items button { padding: 0 7px; height: 22px; font-size: 12px; line-height: 1; }
+      .empty { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+      .pin { display: flex; gap: 6px; margin-top: 6px; }
+      .pin input { flex: 1; }
+      #status.ok, #pin-msg.ok { color: #1a8a4a; } #status.warn, #pin-msg.warn { color: var(--danger); }
+      kbd { font: 11px ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; }
+      .shortcuts { padding-left: 16px; margin: 4px 0 8px; font-size: 12px; }
+      .shortcuts li { margin-bottom: 3px; }
+      input[type="range"] { width: 100%; }
     </style>
   </head>
   <body>
     <div class="hero"><canvas id="mascot" aria-label="Tekkie the robot"></canvas><h1>Tekkie</h1></div>
     <div class="actions">
-      <button id="show" type="button" class="primary">Show Tekkie on this page</button>
+      <button id="show" type="button" class="primary">Show Tekkie here</button>
       <button id="talk" type="button" class="talk">Talk</button>
     </div>
     <p id="caption" class="caption" role="status" aria-live="polite"></p>
     <form id="say" class="say"><input id="say-text" type="text" placeholder="Type to Tekkie…" autocomplete="off" aria-label="Message to Tekkie" /><button type="submit">Send</button></form>
+
+    <details id="site-section">
+      <summary>This site <small id="site-name"></small></summary>
+      <label class="row"><span>Hide Tekkie on this site</span><input id="site-hide" type="checkbox" /></label>
+      <label class="row"><span>Don't let Tekkie click or type here<small>it can still read the page and point at things</small></span><input id="site-nocontrol" type="checkbox" /></label>
+    </details>
+
+    <details>
+      <summary>Voice</summary>
+      <h2>Voice</h2>
+      <select id="voice" aria-label="Tekkie's voice"><option value="">Default</option></select>
+      <h2>Reply language</h2>
+      <select id="language" aria-label="Reply language"><option value="">Same as me</option></select>
+      <label class="row"><span>"Hey Tekkie" wake word<small>listens for its name while idle, using Chrome's speech recognition</small></span><input id="wake" type="checkbox" /></label>
+      <h2>Shortcuts</h2>
+      <ul class="shortcuts">
+        <li>Hold <kbd>Alt</kbd>+<kbd>T</kbd> on a page: hold to talk</li>
+        <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>: start / stop talking</li>
+        <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd>: show / hide Tekkie</li>
+      </ul>
+      <button id="shortcuts" type="button">Change shortcuts</button>
+    </details>
+
+    <details>
+      <summary>Look &amp; feel <small id="bond"></small></summary>
+      <h2>Skin</h2>
+      <div id="skins" class="wrap"></div>
+      <h2>My colours</h2>
+      <div class="colors">
+        <label>Body<input id="c-body" type="color" /></label>
+        <label>Face<input id="c-visor" type="color" /></label>
+        <label>Eyes<input id="c-glow" type="color" /></label>
+        <label>Shoes<input id="c-sneaker" type="color" /></label>
+      </div>
+      <button id="wear-custom" type="button" style="margin-top: 8px">Wear my colours</button>
+      <h2>Size</h2>
+      <input id="scale" type="range" min="0.7" max="1.4" step="0.05" aria-label="Tekkie's size" />
+      <h2>Home corner</h2>
+      <div class="two"><button type="button" data-corner="left">Bottom left</button><button type="button" data-corner="right">Bottom right</button></div>
+    </details>
+
+    <details>
+      <summary>Memory <small id="memory-count"></small></summary>
+      <p class="note">Things you asked Tekkie to remember. Kept on this computer and shared with Tekkie when you talk.</p>
+      <ul id="memory" class="items"></ul>
+      <button id="forget-all" type="button" class="danger">Forget everything</button>
+    </details>
+
+    <details>
+      <summary>Notes &amp; to-dos <small id="notes-count"></small></summary>
+      <p class="note">Ask Tekkie: "note this", "add milk to my to-do list", "remind me in 10 minutes to stretch".</p>
+      <h2>To-dos</h2>
+      <ul id="todos" class="items"></ul>
+      <h2>Reminders</h2>
+      <ul id="reminders" class="items"></ul>
+      <h2>Notes</h2>
+      <ul id="notes" class="items"></ul>
+    </details>
+
+    <details>
+      <summary>Tutor mode <small id="tutor-state"></small></summary>
+      <p class="note">For kids: Tekkie gives hints instead of answers, keeps topics child-friendly, and won't buy, sign up or send anything. Locked with a parent PIN.</p>
+      <div class="pin"><input id="pin" type="password" inputmode="numeric" placeholder="Parent PIN (4+ digits)" aria-label="Parent PIN" /><button id="tutor-toggle" type="button">Turn on</button></div>
+      <p id="pin-msg" class="note" role="status"></p>
+    </details>
+
     <details>
       <summary>Settings</summary>
-    <label class="row"><span>Show Tekkie on pages</span><input id="enabled" type="checkbox" /></label>
-    <label class="row"><span>Let Tekkie use the page<br /><small>click, type, scroll, open links</small></span><input id="control" type="checkbox" /></label>
-    <label class="row"><span>Let Tekkie see the screen<br /><small>screenshot only when you ask</small></span><input id="screen" type="checkbox" /></label>
-    <h2>Skin</h2>
-    <div id="skins"></div>
-    <h2>Voice server</h2>
-    <input id="server" type="text" spellcheck="false" aria-label="Voice server URL" />
-    <p id="status" role="status">Checking…</p>
-    <button id="mic" type="button">Set up microphone</button>
+      <label class="row"><span>Show Tekkie on pages</span><input id="enabled" type="checkbox" /></label>
+      <label class="row"><span>Let Tekkie use the page<small>click, type, scroll, open links</small></span><input id="control" type="checkbox" /></label>
+      <label class="row"><span>Let Tekkie see the screen<small>screenshot only when you ask</small></span><input id="screen" type="checkbox" /></label>
+      <h2>Voice server</h2>
+      <input id="server" type="text" spellcheck="false" aria-label="Voice server URL" />
+      <p id="status" class="note" role="status">Checking…</p>
+      <button id="mic" type="button">Set up microphone</button>
     </details>
     <script type="module" src="/src/popup.ts"></script>
   </body>

@@ -11,7 +11,14 @@ const REJOIN_MS = 1500;
 export class RemoteVoiceSession implements VoiceController {
   private port?: chrome.runtime.Port;
   private state: VoiceState = "idle";
-  private listeners: { [K in keyof VoiceEvents]: VoiceEvents[K][] } = { state: [], caption: [], error: [] };
+  private listeners: { [K in keyof VoiceEvents]: VoiceEvents[K][] } = {
+    state: [],
+    caption: [],
+    error: [],
+    emote: [],
+    plan: [],
+    history: [],
+  };
   private out = 0;
   private mic = 0;
   private joining = false;
@@ -54,6 +61,9 @@ export class RemoteVoiceSession implements VoiceController {
         this.emit("state", msg.state);
       } else if (msg.type === "caption") this.emit("caption", msg.who, msg.text, msg.final);
       else if (msg.type === "error") this.emit("error", msg.message);
+      else if (msg.type === "emote") this.emit("emote", msg.kind);
+      else if (msg.type === "plan") this.emit("plan", msg.plan);
+      else if (msg.type === "history") this.emit("history", msg.lines);
       else if (msg.type === "levels") {
         this.out = msg.out;
         this.mic = msg.in;
@@ -147,5 +157,9 @@ export class RemoteVoiceSession implements VoiceController {
 
   sendText(text: string) {
     void this.send({ type: "text", text }).catch(() => {});
+  }
+
+  setMicMuted(muted: boolean) {
+    void this.send({ type: "mute", muted }).catch(() => {});
   }
 }

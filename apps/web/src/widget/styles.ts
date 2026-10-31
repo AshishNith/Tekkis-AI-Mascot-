@@ -24,13 +24,15 @@ export const WIDGET_CSS = `
 .tekkie {
   position: fixed;
   z-index: 2147483000;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.scale {
   width: 210px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-select: none;
 }
 .bubble {
   pointer-events: auto;
@@ -73,7 +75,7 @@ export const WIDGET_CSS = `
 .stagewrap { position: relative; width: 210px; }
 .tray {
   position: absolute;
-  top: 24%;
+  top: 8%;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -98,6 +100,8 @@ button.chip {
 .stagewrap.open .chip { opacity: 1; transform: none; pointer-events: auto; }
 .stagewrap.open .chip:nth-child(2) { transition-delay: 0.04s; }
 .stagewrap.open .chip:nth-child(3) { transition-delay: 0.08s; }
+.stagewrap.open .chip:nth-child(4) { transition-delay: 0.12s; }
+button.chip.on { outline: 2px solid var(--tk-accent); }
 .stagewrap.open .chip:hover { transform: scale(1.14); }
 button.chip[aria-pressed="true"], button.chip.live { background: var(--tk-accent); border-color: transparent; }
 button.chip.live { background: var(--tk-danger); }
@@ -160,9 +164,85 @@ input {
   color: var(--tk-text);
   box-shadow: var(--tk-shadow);
 }
+/* Sitting on something: tuck the buttons away until the pointer comes by. */
+.perched:not(.hovering) .controls, .perched:not(.hovering) form.type { opacity: 0; pointer-events: none; }
+.controls { transition: opacity 0.2s; }
+
+/* Sleeping: floating z's. */
+.zz { position: absolute; right: 52px; top: 18px; font: 700 18px/1 ui-rounded, system-ui, sans-serif; color: #b9b2ff; opacity: 0; pointer-events: none; }
+.zz span { display: inline-block; }
+.sleeping .zz { opacity: 1; }
+.sleeping .zz, .sleeping .zz span { animation: tk-zz 2.4s ease-in-out infinite; }
+.zz span:nth-child(1) { font-size: 14px; animation-delay: 0.4s; }
+.zz span:nth-child(2) { font-size: 11px; animation-delay: 0.8s; }
+@keyframes tk-zz { 0% { transform: translate(0, 6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(10px, -16px); opacity: 0; } }
+
+/* Panels above Tekkie: history, plan, games, care. */
+.panel {
+  pointer-events: auto;
+  box-sizing: border-box;
+  width: 260px;
+  max-height: 380px;
+  display: none;
+  flex-direction: column;
+  margin-bottom: 8px;
+  border-radius: 16px;
+  background: var(--tk-surface);
+  color: var(--tk-text);
+  border: 1px solid var(--tk-border);
+  box-shadow: var(--tk-shadow);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+.panel.show { display: flex; animation: tk-pop 0.18s ease-out; }
+@keyframes tk-pop { from { transform: translateY(6px) scale(0.97); opacity: 0; } }
+.panel header { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 6px 14px; font-weight: 700; }
+.panel-close { width: 26px; height: 26px; padding: 0; justify-content: center; box-shadow: none; font-size: 16px; }
+.panel-body { padding: 0 12px 12px; overflow: auto; }
+.muted { color: var(--tk-muted); margin: 6px 0; }
+button.small { height: 24px; padding: 0 9px; font-size: 11px; box-shadow: none; }
+.history { list-style: none; margin: 8px 0 0; padding: 0; max-height: 220px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.history li { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: start; padding: 6px 8px; border-radius: 10px; background: rgba(124, 92, 255, 0.08); }
+.history li.user { background: rgba(127, 127, 160, 0.1); }
+.history .who { font-weight: 700; font-size: 11px; color: var(--tk-muted); }
+.history .line { grid-column: 1 / -1; user-select: text; -webkit-user-select: text; }
+.history .copy-line { grid-row: 1; grid-column: 2; justify-self: end; }
+.plan-title { font-weight: 700; margin: 4px 0 6px; }
+.progress { height: 6px; border-radius: 6px; background: rgba(127, 127, 160, 0.2); overflow: hidden; margin-bottom: 8px; }
+.progress span { display: block; height: 100%; background: var(--tk-accent); transition: width 0.3s; }
+.plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.plan li { display: flex; gap: 8px; align-items: baseline; }
+.plan .tick { width: 14px; text-align: center; font-weight: 700; color: var(--tk-muted); }
+.plan li.done { color: var(--tk-muted); text-decoration: line-through; }
+.plan li.done .tick { color: #1a9a52; }
+.plan li.doing { font-weight: 700; }
+.plan li.doing .tick { color: var(--tk-accent); }
+.plan li.failed .tick { color: var(--tk-danger); }
+.game-list { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.game-pick { height: 30px; padding: 0 10px; font-size: 12px; box-shadow: none; }
+.game-row { display: flex; gap: 8px; justify-content: center; }
+.game-btn { width: 52px; height: 52px; font-size: 24px; justify-content: center; padding: 0; }
+.game-score { text-align: center; font-weight: 700; margin: 4px 0 8px; }
+.game-msg { text-align: center; margin: 8px 0 4px; }
+.game-start { margin: 6px auto 0; display: flex; }
+.ttt { display: grid; grid-template-columns: repeat(3, 52px); gap: 6px; justify-content: center; }
+.ttt-cell { width: 52px; height: 52px; padding: 0; justify-content: center; font-size: 22px; border-radius: 12px; box-shadow: none; }
+.level { margin: 4px 0 10px; }
+.stat { display: grid; grid-template-columns: 78px 1fr; align-items: center; gap: 8px; margin-bottom: 6px; }
+.meter { height: 8px; border-radius: 8px; background: rgba(127, 127, 160, 0.2); overflow: hidden; }
+.meter span { display: block; height: 100%; border-radius: 8px; transition: width 0.4s; }
+.food .meter span { background: #ff9a3c; }
+.mood .meter span { background: #ff6fb5; }
+.energy .meter span { background: #4dd8ff; }
+.care-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.care-actions button { justify-content: center; box-shadow: none; }
+
 @media (max-width: 480px) {
-  .tekkie:not(.embedded) { width: 160px; }
-  .tekkie:not(.embedded) .stage { width: 160px; height: 185px; }
+  .scale { width: 160px; }
+  .stagewrap, .stage { width: 160px; }
+  .stage { height: 185px; }
   .bubble { max-width: 220px; font-size: 13px; }
+  .panel { width: 230px; }
 }
 `;

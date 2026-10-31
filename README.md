@@ -52,6 +52,21 @@ Tekkie draws itself straight into the page (in a shadow root), while the voice e
 
 Tekkie is lit like a glossy plastic-and-metal toy (physically based materials and a studio reflection map), with jointed legs and arms. It wanders along the bottom of the page on its own, turning to face where it is going, and sometimes stops to wave or dance. Hover over it and it leans toward your pointer, blushes, waves, and shows option chips: **talk**, **what's on my screen**, **dance**, **follow my cursor** and **walk around on its own**. It stays still when you are talking to it, dragging it, or have reduced motion switched on in your system.
 
+### Everything Tekkie can do
+
+- **Talk your way:** click Talk, hold <kbd>Alt</kbd>+<kbd>T</kbd> on any page (hold-to-talk), press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> anywhere, or say "Hey Tekkie" (optional wake word). <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> shows or hides Tekkie. Pick its voice and reply language in the popup.
+- **Chat history:** the 📜 chip shows the whole conversation with copy buttons, in every tab.
+- **Feelings:** Tekkie laughs, celebrates (with confetti), looks surprised, sad, in love or munches a snack, on its own during a chat or when something happens. It dozes off when you've been away for a while.
+- **Mini-games:** rock paper scissors, tic-tac-toe and "catch me" (🎮 chip).
+- **Climbing:** it jumps onto buttons, headings and pictures on the page and sits there for a while.
+- **Pet care:** feed, play, pet (or rub your cursor over it) and let it nap (🍪 chip). Food, mood and energy change over time; caring for it raises the bond level, which unlocks skins.
+- **Page help:** right-click selected text → Ask Tekkie (explain, summarize, translate, read aloud). Tekkie can point at the next thing to click with a glowing arrow, and shows a checklist for bigger jobs.
+- **Notes & reminders:** "note this", "add milk to my to-do list", "remind me in 10 minutes to stretch". See and edit them in the popup.
+- **Memory:** Tekkie remembers what you ask it to (your name, what you like) and you can delete any of it, or everything, in the popup.
+- **Tutor mode:** a parent-PIN-locked kid-safe mode: hints instead of answers, child-friendly topics, no buying or signing up.
+- **Per-site controls:** hide Tekkie, or stop it clicking and typing, on specific websites.
+- **Your look:** your own colours, size and home corner.
+
 ### Production build
 
 ```bash
