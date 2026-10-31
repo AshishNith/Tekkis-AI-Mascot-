@@ -48,6 +48,10 @@ npm run build:extension
 
 Tekkie draws itself straight into the page (in a shadow root), while the voice engine, microphone and speaker run in the extension's background page, so strict site security rules can't block it and the chat survives page changes. Tekkie follows you from tab to tab (it is added to the tab you switch to, and its position stays in sync). Click the toolbar icon for the control panel: **Show Tekkie on this page**, **Talk**, and a text box.
 
+### Making Tekkie feel alive
+
+Tekkie is lit like a glossy plastic-and-metal toy (physically based materials and a studio reflection map), with jointed legs and arms. It wanders along the bottom of the page on its own, turning to face where it is going, and sometimes stops to wave or dance. Hover over it and it leans toward your pointer, blushes, waves, and shows option chips: **talk**, **what's on my screen**, **dance**, **follow my cursor** and **walk around on its own**. It stays still when you are talking to it, dragging it, or have reduced motion switched on in your system.
+
 ### Production build
 
 ```bash

@@ -46,7 +46,18 @@ export function mountTekkie(options: TekkieOptions) {
     <style>${WIDGET_CSS}</style>
     <div class="tekkie" role="complementary" aria-label="Tekkie assistant">
       <div class="bubble" aria-live="polite"><div class="you"></div><div class="said"></div></div>
-      <div class="stage" title="Drag me around · tap to talk"><canvas></canvas></div>
+      <div class="stagewrap">
+        <div class="stage" title="Drag me around · tap to talk"><canvas></canvas></div>
+        <div class="tray left" role="menu" aria-label="Tekkie options">
+          <button class="chip" type="button" data-act="talk" title="Talk" aria-label="Talk">🎙</button>
+          <button class="chip" type="button" data-act="screen" title="What's on my screen?" aria-label="What's on my screen?">👀</button>
+          <button class="chip" type="button" data-act="dance" title="Dance!" aria-label="Dance">💃</button>
+        </div>
+        <div class="tray right" role="menu" aria-label="Tekkie behaviour">
+          <button class="chip" type="button" data-act="follow" title="Follow my cursor" aria-label="Follow my cursor" aria-pressed="false">🐾</button>
+          <button class="chip" type="button" data-act="wander" title="Walk around on its own" aria-label="Walk around on its own" aria-pressed="true">🚶</button>
+        </div>
+      </div>
       <div class="controls">
         <button class="talk" type="button"><span class="dot"></span><span class="label">Talk</span></button>
         <button class="icon keyboard" type="button" aria-label="Type a message" title="Type instead">⌨</button>
@@ -62,6 +73,7 @@ export function mountTekkie(options: TekkieOptions) {
   const youEl = $<HTMLDivElement>(".you");
   const saidEl = $<HTMLDivElement>(".said");
   const stage = $<HTMLDivElement>(".stage");
+  const stageWrap = $<HTMLDivElement>(".stagewrap");
   const talkBtn = $<HTMLButtonElement>(".talk");
   const talkLabel = $<HTMLSpanElement>(".talk .label");
   const typeForm = $<HTMLFormElement>("form.type");
@@ -201,11 +213,140 @@ export function mountTekkie(options: TekkieOptions) {
   });
 
   // Tekkie keeps an eye on the pointer anywhere on the page.
+  let pointerX = -1;
   function lookAtPoint(x: number, y: number) {
     const r = stage.getBoundingClientRect();
     character.lookAt((x - (r.left + r.width / 2)) / 500, -(y - (r.top + r.height * 0.4)) / 400);
   }
-  window.addEventListener("pointermove", (e) => lookAtPoint(e.clientX, e.clientY));
+  window.addEventListener("pointermove", (e) => {
+    pointerX = e.clientX;
+    lookAtPoint(e.clientX, e.clientY);
+  });
+
+  // --- Alive: hover options, wandering and following ------------------------------------------
+  const PREFS_KEY = "tekkie:prefs:v1";
+  const prefs = { wander: true, follow: false };
+  try {
+    Object.assign(prefs, JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}"));
+  } catch {
+    /* storage unavailable: defaults */
+  }
+  const chips = [...root.querySelectorAll<HTMLButtonElement>(".chip")];
+  function syncChips() {
+    for (const chip of chips) {
+      const act = chip.dataset.act;
+      if (act === "follow" || act === "wander") chip.setAttribute("aria-pressed", String(prefs[act]));
+      if (act === "talk") chip.classList.toggle("live", voice.active);
+    }
+  }
+  function savePrefs() {
+    syncChips();
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch {
+      /* storage unavailable: just won't persist */
+    }
+  }
+  syncChips();
+
+  let hovering = false;
+  let hoverTimer = 0;
+  function setHover(on: boolean) {
+    hovering = on;
+    character.setHover(on);
+    stageWrap.classList.toggle("open", on);
+  }
+  stageWrap.addEventListener("pointerenter", () => {
+    clearTimeout(hoverTimer);
+    setHover(true);
+  });
+  stageWrap.addEventListener("pointerleave", () => {
+    clearTimeout(hoverTimer);
+    hoverTimer = window.setTimeout(() => setHover(false), 700); // time to reach a chip
+  });
+
+  stageWrap.addEventListener("click", (e) => {
+    const chip = (e.target as Element).closest<HTMLButtonElement>("button[data-act]");
+    if (!chip) return;
+    switch (chip.dataset.act) {
+      case "talk":
+        toggleVoice();
+        break;
+      case "screen":
+        void (async () => {
+          if (!voice.active) await voice.start();
+          voice.sendText("Look at my screen and tell me what you see.");
+        })();
+        break;
+      case "dance":
+        character.dance();
+        break;
+      case "follow":
+        prefs.follow = !prefs.follow;
+        say(prefs.follow ? "Okay, I'll stick with you!" : "Okay, I'll stay here.");
+        savePrefs();
+        break;
+      case "wander":
+        prefs.wander = !prefs.wander;
+        say(prefs.wander ? "Time for a stroll!" : "I'll stay put.");
+        savePrefs();
+        break;
+    }
+  });
+  voice.on("state", syncChips);
+
+  // Walking along the bottom of the page, like a little desktop pet.
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  let wanderGoal: number | null = null;
+  let restFor = 3 + Math.random() * 3;
+
+  function stepToward(goal: number, speed: number, dt: number) {
+    const dx = goal - pos.x;
+    if (Math.abs(dx) < 4) {
+      character.setWalk(0);
+      return true;
+    }
+    place(pos.x + Math.sign(dx) * Math.min(Math.abs(dx), speed * dt), pos.b);
+    character.setWalk(Math.sign(dx));
+    return false;
+  }
+
+  function behave(dt: number) {
+    if (frame) return; // an embedding page owns the position
+    const free = !drag?.moved && !document.hidden && !reduceMotion && !character.dancing;
+    if (!free) {
+      character.setWalk(0);
+      wanderGoal = null;
+      return;
+    }
+    const maxX = window.innerWidth - box.offsetWidth - MARGIN;
+    if (prefs.follow && pointerX >= 0 && !hovering) {
+      // Stay a little way from the pointer, on whichever side it is.
+      const goal = Math.min(Math.max(MARGIN, pointerX - box.offsetWidth / 2), maxX);
+      if (Math.abs(goal - pos.x) > 110) stepToward(goal, 240, dt);
+      else character.setWalk(0);
+      return;
+    }
+    if (!prefs.wander || hovering || voice.active || maxX - MARGIN < 160) {
+      character.setWalk(0);
+      wanderGoal = null;
+      return;
+    }
+    if (wanderGoal === null) {
+      character.setWalk(0);
+      restFor -= dt;
+      if (restFor <= 0) {
+        do wanderGoal = MARGIN + Math.random() * (maxX - MARGIN);
+        while (Math.abs(wanderGoal - pos.x) < 140);
+      }
+    } else if (stepToward(wanderGoal, 105, dt)) {
+      wanderGoal = null;
+      restFor = 5 + Math.random() * 9;
+      const roll = Math.random();
+      if (roll < 0.35) character.wave();
+      else if (roll < 0.5) character.dance();
+    }
+  }
 
   // --- Render loop -----------------------------------------------------------
   const sizeCanvas = () => character.resize(stage.clientWidth, stage.clientHeight);
@@ -215,8 +356,10 @@ export function mountTekkie(options: TekkieOptions) {
   let raf = 0;
   let last = performance.now();
   const loop = (now: number) => {
+    const dt = (now - last) / 1000;
+    behave(Math.min(dt, 0.05));
     character.setLevels(voice.outputLevel, voice.inputLevel);
-    character.update((now - last) / 1000);
+    character.update(dt);
     last = now;
     raf = requestAnimationFrame(loop);
   };

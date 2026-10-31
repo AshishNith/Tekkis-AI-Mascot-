@@ -70,6 +70,37 @@ export const WIDGET_CSS = `
 .you:empty { display: none; }
 .said { max-height: 7.2em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; }
 .bubble.error .said { color: var(--tk-danger); }
+.stagewrap { position: relative; width: 210px; }
+.tray {
+  position: absolute;
+  top: 24%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.tray.left { left: -4px; }
+.tray.right { right: -4px; }
+button.chip {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  font-size: 17px;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.5) translateX(var(--tk-from, 0));
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.3, 1.5, 0.5, 1), background 0.15s;
+}
+.tray.left .chip { --tk-from: 14px; }
+.tray.right .chip { --tk-from: -14px; }
+.stagewrap.open .chip { opacity: 1; transform: none; pointer-events: auto; }
+.stagewrap.open .chip:nth-child(2) { transition-delay: 0.04s; }
+.stagewrap.open .chip:nth-child(3) { transition-delay: 0.08s; }
+.stagewrap.open .chip:hover { transform: scale(1.14); }
+button.chip[aria-pressed="true"], button.chip.live { background: var(--tk-accent); border-color: transparent; }
+button.chip.live { background: var(--tk-danger); }
 .stage {
   pointer-events: auto;
   width: 210px;
