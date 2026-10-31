@@ -22,6 +22,16 @@ export const BROWSER_TOOLS: FunctionDeclaration[] = [
   },
   { name: "clear_highlights", description: "Remove the guide ring and arrow from the page." },
   {
+    name: "play_on_youtube",
+    description:
+      "Play music or a video: opens YouTube in a new tab, searches for it and starts the first result. Use it for 'play some music', 'play <song>', 'put on <video>'. For vague requests like 'some music', pick something popular yourself, e.g. 'relaxing music' or 'top hits'. Don't ask which song.",
+    parametersJsonSchema: { type: "object", properties: { query: { type: "string", description: "What to search for, e.g. 'Arijit Singh hits'" } }, required: ["query"] },
+  },
+  {
+    name: "save_screenshot",
+    description: "Take a screenshot of the page the user is looking at and save it as an image file in their Downloads/Tekkie folder (also noted in their notes).",
+  },
+  {
     name: "read_page",
     description:
       "Look at the page the user is on. Returns its URL, title, a text excerpt and a numbered list of clickable/typable elements. Call this before click or type_text, and again after the page changes.",
@@ -89,7 +99,8 @@ export const BROWSER_TOOLS: FunctionDeclaration[] = [
   },
   {
     name: "go_to",
-    description: "Open a web address (http or https) in the current tab.",
+    description:
+      "Open a website in the current tab. Accepts an address or just a well-known name: 'gmail', 'youtube', 'maps', 'drive', 'whatsapp', 'amazon', 'netflix'... Anything it doesn't know is searched on Google.",
     parametersJsonSchema: { type: "object", properties: { url: { type: "string" } }, required: ["url"] },
   },
   {
@@ -99,7 +110,8 @@ export const BROWSER_TOOLS: FunctionDeclaration[] = [
   },
   {
     name: "open_tab",
-    description: "Open a web address in a new tab and switch to it.",
+    description:
+      "Open a website in a NEW tab and switch to it. Prefer this for 'open Gmail', 'open YouTube' and similar, so the page the user is on stays open. Accepts an address or a well-known name like 'gmail', 'youtube', 'maps'.",
     parametersJsonSchema: { type: "object", properties: { url: { type: "string" } }, required: ["url"] },
   },
   { name: "go_back", description: "Go back one page in the current tab." },
@@ -178,7 +190,8 @@ export const COMPANION_TOOLS: FunctionDeclaration[] = [
   },
   {
     name: "add_note",
-    description: "Save a note or quote for the user.",
+    description:
+      "Save a note, quote or reminder-to-self for the user. The page they are on (title and address) is added automatically, so a note can be just a few words, or what they asked to remember.",
     parametersJsonSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
   },
   { name: "list_notes", description: "List the user's saved notes." },

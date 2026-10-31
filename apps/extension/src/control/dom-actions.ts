@@ -294,6 +294,20 @@ export function pointAt(args: { id?: unknown; note?: unknown }) {
   return { pointing: labelOf(el) };
 }
 
+/** Registers the first visible match for a selector as a clickable element id (null if none). */
+export function findFirst(args: { selector?: unknown }) {
+  const selector = String(args.selector ?? "");
+  for (const el of document.querySelectorAll(selector)) {
+    if (el.closest("[data-tekkie]") || !visible(el)) continue;
+    // Skip sponsored results.
+    if (el.closest("ytd-ad-slot-renderer, ytd-promoted-video-renderer, ytd-display-ad-renderer")) continue;
+    const id = elements.size + 1;
+    elements.set(id, el);
+    return { id, label: labelOf(el) };
+  }
+  return null;
+}
+
 export function scroll(args: { direction?: unknown; amount?: unknown }) {
   const dir = String(args.direction ?? "down");
   const page = window.innerHeight * 0.8;
@@ -320,6 +334,8 @@ export function runAction(name: string, args: Record<string, unknown>): unknown 
       return typeText(args);
     case "fill_form":
       return fillForm(args);
+    case "find_first":
+      return findFirst(args);
     case "scroll":
       return scroll(args);
     case "get_page_text":

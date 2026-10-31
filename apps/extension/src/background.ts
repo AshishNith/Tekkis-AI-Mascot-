@@ -82,13 +82,70 @@ async function activeTab() {
   return tab;
 }
 
+/** Well-known sites by the name people say, so "open Gmail" needs no address. */
+const SITES: Record<string, string> = {
+  gmail: "https://mail.google.com",
+  email: "https://mail.google.com",
+  mail: "https://mail.google.com",
+  google: "https://www.google.com",
+  youtube: "https://www.youtube.com",
+  "youtube music": "https://music.youtube.com",
+  maps: "https://www.google.com/maps",
+  "google maps": "https://www.google.com/maps",
+  drive: "https://drive.google.com",
+  "google drive": "https://drive.google.com",
+  docs: "https://docs.google.com/document",
+  "google docs": "https://docs.google.com/document",
+  sheets: "https://docs.google.com/spreadsheets",
+  "google sheets": "https://docs.google.com/spreadsheets",
+  slides: "https://docs.google.com/presentation",
+  calendar: "https://calendar.google.com",
+  "google calendar": "https://calendar.google.com",
+  meet: "https://meet.google.com",
+  photos: "https://photos.google.com",
+  translate: "https://translate.google.com",
+  news: "https://news.google.com",
+  gemini: "https://gemini.google.com",
+  chatgpt: "https://chatgpt.com",
+  claude: "https://claude.ai",
+  facebook: "https://www.facebook.com",
+  instagram: "https://www.instagram.com",
+  twitter: "https://x.com",
+  x: "https://x.com",
+  linkedin: "https://www.linkedin.com",
+  whatsapp: "https://web.whatsapp.com",
+  "whatsapp web": "https://web.whatsapp.com",
+  telegram: "https://web.telegram.org",
+  reddit: "https://www.reddit.com",
+  github: "https://github.com",
+  netflix: "https://www.netflix.com",
+  spotify: "https://open.spotify.com",
+  amazon: "https://www.amazon.in",
+  flipkart: "https://www.flipkart.com",
+  wikipedia: "https://www.wikipedia.org",
+  outlook: "https://outlook.live.com",
+  zoom: "https://zoom.us",
+  notion: "https://www.notion.so",
+  figma: "https://www.figma.com",
+  canva: "https://www.canva.com",
+  pinterest: "https://www.pinterest.com",
+  "prime video": "https://www.primevideo.com",
+  hotstar: "https://www.hotstar.com",
+};
+
 function safeUrl(raw: unknown): string {
+  const said = String(raw ?? "").trim();
+  const named = SITES[said.toLowerCase().replace(/^(the|open|go to)\s+/, "").replace(/\.(com|in)$/, "")];
   let url: URL;
   try {
-    url = new URL(String(raw));
+    if (named) url = new URL(named);
+    else if (!said.includes(".") && !said.includes("/") && !said.includes(":")) {
+      // Not a web address and not a site we know: search for it instead of failing.
+      url = new URL(`https://www.google.com/search?q=${encodeURIComponent(said)}`);
+    } else url = new URL(said);
   } catch {
     try {
-      url = new URL(`https://${String(raw)}`);
+      url = new URL(`https://${said}`);
     } catch {
       throw new Error("That isn't a valid web address.");
     }
@@ -252,9 +309,18 @@ async function runListTool(name: string, args: Record<string, unknown>): Promise
       await saveList("memory", keep);
       return { forgotten: items.length - keep.length };
     }
-    case "add_note":
-      await add("notes");
-      return { saved: true };
+    case "add_note": {
+      // Remember where it came from, so a note on a search or an article can be found again.
+      let source = "";
+      try {
+        const tab = await activeTab();
+        if (tab.url && /^https?:/.test(tab.url)) source = ` — ${(tab.title ?? "").slice(0, 60)} (${tab.url.slice(0, 120)})`;
+      } catch {
+        /* no page in front */
+      }
+      await add("notes", { text: text + source });
+      return { saved: true, from: source ? "the page you're on" : undefined };
+    }
     case "list_notes":
       return (await loadList("notes")).slice(-30).map((n) => n.text);
     case "add_todo":
@@ -283,11 +349,52 @@ async function runListTool(name: string, args: Record<string, unknown>): Promise
   return undefined;
 }
 
+/** Saves a PNG of the visible tab to the Downloads folder, and notes where it came from. */
+async function saveScreenshot(): Promise<unknown> {
+  if (!(await loadSettings()).screenReading) {
+    throw new Error('Screenshots are switched off. Ask the user to turn on "Let Tekkie see the screen" in the Tekkie popup settings.');
+  }
+  const tab = await activeTab();
+  const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+  const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
+  const filename = `Tekkie/screenshot-${stamp}.png`;
+  await chrome.downloads.download({ url: dataUrl, filename, saveAs: false });
+  const items = await loadList("notes");
+  items.push({ id: newId(), text: `Screenshot saved: ${filename} — ${(tab.title ?? "").slice(0, 60)}`, at: Date.now() });
+  await saveList("notes", items);
+  return { saved: true, file: `Downloads/${filename}` };
+}
+
+/** Opens YouTube's results for a search in a new tab and plays the first real video (a real click, so sound is allowed). */
+async function playOnYoutube(query: string): Promise<unknown> {
+  if (!query.trim()) throw new Error("What should I play?");
+  const created = await chrome.tabs.create({ url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, active: true });
+  const tabId = created.id!;
+  await settle(tabId);
+  // The results are drawn by script a moment after the page loads.
+  for (let i = 0; i < 12; i++) {
+    try {
+      const found = (await act(tabId, "find_first", { selector: "ytd-video-renderer a#video-title, a#video-title" })) as { id: number; label: string } | null;
+      if (found) {
+        await click(tabId, { id: found.id });
+        await settle(tabId);
+        return { playing: found.label, note: "It should be playing now. If a skip-ads button or consent box shows, handle it with read_page and click." };
+      }
+    } catch {
+      /* page still loading */
+    }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  return { opened: "YouTube results", note: "I couldn't find a video to start. Call read_page and click one." };
+}
+
 const LIST_TOOLS = new Set(["remember", "forget", "add_note", "list_notes", "add_todo", "complete_todo", "list_todos", "set_reminder"]);
 const HANDS_ON = new Set(["click", "type_text", "fill_form", "press_key", "hover"]);
 
 async function runTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   if (LIST_TOOLS.has(name)) return runListTool(name, args);
+  if (name === "save_screenshot") return saveScreenshot();
+  if (name === "play_on_youtube") return playOnYoutube(String(args.query ?? ""));
   // Chrome-level tools don't need a page.
   if (name === "list_tabs") {
     const tabs = await chrome.tabs.query({});
