@@ -17,6 +17,6 @@ export default defineConfig({
     // Keep the audio worklet a real file: data: URLs are blocked by strict CSPs (and in extensions).
     assetsInlineLimit: (file) => (file.endsWith("-worklet.js") ? false : undefined),
     // The landing page is the root; the developer playground keeps its own page.
-    rollupOptions: { input: { index: "index.html", playground: "playground.html" } },
+    rollupOptions: { input: { index: "index.html", setup: "setup.html", playground: "playground.html" } },
   },
 });

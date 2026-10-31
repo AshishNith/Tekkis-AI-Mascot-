@@ -245,6 +245,9 @@ em { font-family: var(--serif); font-style: italic; font-weight: 400; color: var
 .install-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
 .btn-ico { display: inline-grid; width: 20px; height: 20px; }
 .btn-ico svg { width: 20px; height: 20px; }
+.install-guide { margin-top: 10px; font-size: 15px; }
+.install-guide a { color: var(--primary-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+.install-guide a::after { content: " \2192"; }
 .install-meta { margin-top: 14px; font-size: 13px; color: var(--muted-2); font-family: var(--mono); }
 .install-steps { list-style: none; padding: 0; margin: 48px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; text-align: left; }
 .install-steps li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }

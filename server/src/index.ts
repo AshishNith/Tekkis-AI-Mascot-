@@ -98,10 +98,19 @@ const SECURITY_HEADERS = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
 };
 
+/** Short links that should open the setup guide (which starts the download itself). */
+const SETUP_REDIRECTS = new Set(["/download", "/download/", "/downloads", "/downloads/"]);
+
 function serveStatic(req: IncomingMessage, res: ServerResponse) {
   const urlPath = decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname);
+  if (SETUP_REDIRECTS.has(urlPath)) {
+    res.writeHead(302, { Location: "/setup?download=1", "Cache-Control": "no-store" });
+    return res.end();
+  }
   let file = normalize(join(config.webDist, urlPath));
   if (!file.startsWith(config.webDist)) return res.writeHead(403).end();
+  // Clean URLs: /setup serves setup.html.
+  if (!extname(file) && !existsSync(file) && existsSync(`${file}.html`)) file = `${file}.html`;
   if (!existsSync(file) || statSync(file).isDirectory()) file = join(config.webDist, "index.html");
   if (!existsSync(file)) return res.writeHead(404).end("Not found — run `npm run build` first.");
   const headers: Record<string, string> = {

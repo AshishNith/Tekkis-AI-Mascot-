@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Set Up Tekkie: Step-by-Step for Mac and Windows</title>
+    <meta name="description" content="Install the Tekkie Chrome extension in two minutes: unzip, load it in Chrome, Edge or Brave, allow the microphone and start talking. Guides for Mac and Windows." />
+    <meta name="theme-color" content="#ff5c00" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/brand/tekkie-mark.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/brand/icon-180.png" />
+    <meta property="og:title" content="Set Up Tekkie: Step-by-Step for Mac and Windows" />
+    <meta property="og:image" content="/brand/og.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/landing.css" />
+    <link rel="stylesheet" href="/src/setup.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to main content</a>
+
+    <header class="nav" id="nav">
+      <div class="wrap nav-inner">
+        <a class="logo" href="/" aria-label="Tekkie home">
+          <img src="/brand/tekkie-mark.svg" width="30" height="30" alt="" />
+          <span>Tekkie</span>
+        </a>
+        <button type="button" class="menu" id="menu" aria-expanded="false" aria-controls="links" aria-label="Menu"><span></span><span></span></button>
+        <nav class="links" id="links">
+          <a href="/">Home</a>
+          <a href="/#features">Features</a>
+          <a href="#trouble">Troubleshooting</a>
+          <a href="/#faq">FAQ</a>
+          <div class="nav-actions">
+            <a class="ghost" href="/">Back to site</a>
+            <a class="btn primary" href="/downloads/tekkie-extension.zip" data-zip>Download again</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- Hero: what just happened, and what this page is -->
+      <section class="su-hero">
+        <div class="wrap su-hero-inner">
+          <div class="su-hero-copy">
+            <p class="eyebrow" id="hero-eyebrow">SETUP GUIDE</p>
+            <h1 id="hero-title">Set Up Tekkie in <em>Two Minutes.</em></h1>
+            <p class="lead" id="hero-lead">Unzip it, load it into your browser, allow the microphone, and say hi. Pick your computer below and follow along.</p>
+            <div class="su-download" id="download-box">
+              <span class="su-file" aria-hidden="true" data-icon="download"></span>
+              <div class="su-file-meta">
+                <strong>tekkie-extension.zip</strong>
+                <span id="file-meta">Chrome extension</span>
+              </div>
+              <a class="btn primary" href="/downloads/tekkie-extension.zip" data-zip id="download-btn">Download</a>
+            </div>
+            <p class="su-started" id="started" hidden>Your download has started. Didn't see it? <a href="/downloads/tekkie-extension.zip" data-zip>Download again</a>.</p>
+          </div>
+          <div class="su-hero-art" aria-hidden="true">
+            <div class="su-glow"></div>
+            <img src="/brand/tekkie-head-3d.png" alt="" width="420" height="420" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Notices for phones and unsupported browsers (filled by setup.ts) -->
+      <div class="wrap"><div class="su-notice" id="notice" role="status" hidden></div></div>
+
+      <!-- Guide -->
+      <section class="su-guide" aria-labelledby="guide-title">
+        <div class="wrap su-guide-grid">
+          <aside class="su-side" aria-label="Your setup">
+            <div class="su-card">
+              <p class="eyebrow">YOUR COMPUTER</p>
+              <div class="su-seg" role="tablist" aria-label="Operating system" id="os-tabs">
+                <button role="tab" type="button" data-os="mac" aria-selected="false"><span data-icon="apple"></span>Mac</button>
+                <button role="tab" type="button" data-os="windows" aria-selected="false"><span data-icon="windows"></span>Windows</button>
+              </div>
+              <p class="eyebrow su-mt">YOUR BROWSER</p>
+              <div class="su-seg su-seg-4" role="tablist" aria-label="Browser" id="browser-tabs">
+                <button role="tab" type="button" data-browser="chrome" aria-selected="false">Chrome</button>
+                <button role="tab" type="button" data-browser="edge" aria-selected="false">Edge</button>
+                <button role="tab" type="button" data-browser="brave" aria-selected="false">Brave</button>
+                <button role="tab" type="button" data-browser="arc" aria-selected="false">Arc</button>
+              </div>
+              <p class="su-detected" id="detected"></p>
+            </div>
+            <div class="su-card">
+              <div class="su-progress-head"><p class="eyebrow">PROGRESS</p><span id="progress-text">0 of 8</span></div>
+              <div class="su-bar" role="progressbar" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0" id="progress-bar"><i></i></div>
+              <button type="button" class="linkish su-reset" id="reset">Start over</button>
+            </div>
+          </aside>
+
+          <div class="su-steps-col">
+            <h2 id="guide-title">Step by Step on <em id="guide-os">Mac</em></h2>
+            <p class="sub">Tick each step as you go. Your progress stays on this device.</p>
+            <ol class="su-steps" id="steps"></ol>
+
+            <div class="su-done" id="done" hidden>
+              <img src="/brand/tekkie-mark.svg" width="56" height="56" alt="" />
+              <div>
+                <h3>You're all set.</h3>
+                <p>Open any website and say hi to Tekkie. Ask it to search, summarise a page, or play rock paper scissors.</p>
+              </div>
+            </div>
+
+            <h2 class="su-mt-lg" id="trouble">Troubleshooting</h2>
+            <div class="su-faq" id="faq"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer su-footer">
+      <div class="wrap foot-legal">
+        <p>Tekkie asks before collecting anything and keeps personal data on the device unless you opt in. The extension talks to Tekkie's voice server only while you are talking to it.</p>
+        <p>&copy; 2026 Tekkie. <a href="/">Home</a> &middot; <a href="/#faq">FAQ</a> &middot; <a href="/status">Service status</a></p>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/setup.ts"></script>
+  </body>
+</html>

@@ -97,7 +97,9 @@ The whole thing (website, voice-token API and the downloadable extension) runs a
 | Environment | `GEMINI_API_KEY` (secret, set in the Render dashboard), `GEMINI_LIVE_MODEL`, `GEMINI_VOICE`, `ALLOWED_ORIGINS=https://tekkie.vercel.app`, `TEKKIE_SERVER_URL=https://tekkie.onrender.com` |
 
 `build:render` builds the site and server, then builds the Chrome extension pointed at `TEKKIE_SERVER_URL` and zips it to
-`/downloads/tekkie-extension.zip`, which the website's **Download for Chrome** buttons serve. The extension's manifest
+`/downloads/tekkie-extension.zip`. The website's download buttons open `/setup?download=1`, a step-by-step guide
+(Mac or Windows, Chrome, Edge, Brave or Arc, detected automatically) that starts the download itself; `/download` and
+`/downloads` redirect there too. The extension's manifest
 carries a fixed public key, so every install has the same ID (`apps/extension/EXTENSION_ID`) and the server allows
 exactly that extension plus its own URL and anything in `ALLOWED_ORIGINS`. Behind Render's proxy the rate limit uses
 the visitor's forwarded address.

@@ -510,13 +510,9 @@ document.querySelectorAll<HTMLButtonElement>("[data-launch]").forEach((b) => b.a
 // --- Download and install ------------------------------------------------------------------------
 
 // The zip is served by the voice server; on another host (Vercel) the links point there.
-document.querySelectorAll<HTMLAnchorElement>("a[data-download]").forEach((a) => {
-  a.href = DOWNLOAD_URL;
-  a.addEventListener("click", () => {
-    character.emote("celebrate");
-    say("Unzip me, then Load unpacked", 4200);
-  });
-});
+// Download buttons open the setup guide, which starts the download and walks through installing it
+// (see setup.ts). DOWNLOAD_URL stays the file itself for anything that needs the raw zip.
+void DOWNLOAD_URL;
 fetch(`${API_BASE}/downloads/tekkie-extension.json`)
   .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
   .then((info: { version: string; bytes: number }) => {
