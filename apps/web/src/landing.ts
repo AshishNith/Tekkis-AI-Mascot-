@@ -92,6 +92,11 @@ const STOPS: Stop[] = [
     yaw: 0.35, az: 0.08, el: 0.06, line: "Install me, or embed me", emote: "shrug",
   },
   {
+    desktop: { perch: { sel: ".install-steps li:nth-child(4)", along: 0.72 }, height: 150, maxVh: 0.22 },
+    mobile: HIDDEN,
+    yaw: -0.25, az: -0.04, el: 0.06, line: "Two minutes, promise", emote: "nod",
+  },
+  {
     desktop: { perch: { sel: ".cards .card:nth-child(2)", along: 0.72 }, height: 170, maxVh: 0.28 },
     mobile: HIDDEN,
     yaw: 0, az: -0.04, el: 0.06, line: "Hover a card, I'll react", emote: "lookaround",
