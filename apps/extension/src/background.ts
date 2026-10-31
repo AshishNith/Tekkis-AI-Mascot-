@@ -39,8 +39,12 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
   // First install: grant the microphone once up front, so the first chat on any site just works.
   if (reason === "install") void chrome.tabs.create({ url: chrome.runtime.getURL(MIC_SETUP) });
   void ensureInAllTabs(); // tabs that were already open get Tekkie without a refresh
+  void ensureOffscreen();
 });
-chrome.runtime.onStartup.addListener(() => void ensureInAllTabs());
+chrome.runtime.onStartup.addListener(() => {
+  void ensureInAllTabs();
+  void ensureOffscreen();
+});
 
 // --- Voice lives in an offscreen document so a conversation survives page navigations. -----------
 
@@ -49,13 +53,25 @@ async function hasOffscreen() {
   return contexts.length > 0;
 }
 
+let creatingOffscreen: Promise<void> | undefined;
+
+/** Creates the voice document if it doesn't exist. Safe to call from many tabs at once. */
 async function ensureOffscreen() {
   if (await hasOffscreen()) return;
-  await chrome.offscreen.createDocument({
-    url: OFFSCREEN,
-    reasons: [chrome.offscreen.Reason.USER_MEDIA, chrome.offscreen.Reason.AUDIO_PLAYBACK],
-    justification: "Keep the voice conversation with Tekkie going while pages change.",
-  });
+  creatingOffscreen ??= chrome.offscreen
+    .createDocument({
+      url: OFFSCREEN,
+      reasons: [chrome.offscreen.Reason.USER_MEDIA, chrome.offscreen.Reason.AUDIO_PLAYBACK],
+      justification: "Keep the voice conversation with Tekkie going while pages change.",
+    })
+    .catch((err: unknown) => {
+      // Another tab won the race to create it: that's fine.
+      if (!/single offscreen/i.test(String(err))) throw err;
+    })
+    .finally(() => {
+      creatingOffscreen = undefined;
+    });
+  await creatingOffscreen;
 }
 
 // --- Browser control: the tools Gemini calls land here. ----------------------------------------

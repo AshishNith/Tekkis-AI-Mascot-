@@ -1,28 +1,28 @@
 import type { VoiceController, VoiceEvents, VoiceState } from "../../web/src/voice/LiveVoiceSession";
 import { PORT_NAME, type ToUi, type ToVoice } from "./protocol";
 
-/** The widget's view of the voice conversation, which actually runs in the extension's offscreen document. */
+const REJOIN_MS = 1500;
+
+/**
+ * The widget's view of the voice conversation, which actually runs in the extension's offscreen
+ * document. Every tab stays connected from the moment it loads, so whatever Tekkie says, in whichever
+ * tab the chat was started, every tab shows it (captions, mouth, state).
+ */
 export class RemoteVoiceSession implements VoiceController {
   private port?: chrome.runtime.Port;
   private state: VoiceState = "idle";
   private listeners: { [K in keyof VoiceEvents]: VoiceEvents[K][] } = { state: [], caption: [], error: [] };
   private out = 0;
   private mic = 0;
+  private joining = false;
+  private joinPromise?: Promise<boolean>;
+  private rejoinTimer = 0;
 
-  /** Resolves to true if a conversation was already running (e.g. the page just changed) and we re-joined it. */
+  /** Resolves to true if a conversation was already running (another tab, or before a page change) and we joined it. */
   readonly restored: Promise<boolean>;
 
   constructor() {
-    // After a page navigation the conversation may still be running: pick it back up.
-    this.restored = chrome.runtime
-      .sendMessage({ type: "tekkie:offscreen", create: false })
-      .then(async (exists: boolean) => {
-        if (!exists) return false;
-        this.connect();
-        await new Promise((r) => setTimeout(r, 250)); // let the state snapshot arrive
-        return this.active;
-      })
-      .catch(() => false);
+    this.restored = this.join();
   }
 
   on<K extends keyof VoiceEvents>(event: K, fn: VoiceEvents[K]) {
@@ -60,16 +60,51 @@ export class RemoteVoiceSession implements VoiceController {
       }
     });
     port.onDisconnect.addListener(() => {
+      if (this.port !== port) return;
       this.port = undefined;
+      if (this.joining) return;
+      // The voice engine went away (it was closed or restarted): the chat is over, and we reconnect.
+      if (this.active) {
+        this.state = "idle";
+        this.out = this.mic = 0;
+        this.emit("state", "idle");
+      }
+      this.scheduleRejoin();
     });
   }
 
-  private send(msg: ToVoice) {
-    this.connect();
-    this.port!.postMessage(msg);
+  private scheduleRejoin() {
+    if (this.rejoinTimer || !chrome.runtime?.id) return;
+    this.rejoinTimer = window.setTimeout(() => {
+      this.rejoinTimer = 0;
+      void this.join();
+    }, REJOIN_MS);
   }
 
-  /** The offscreen document may still be booting right after it is created: retry until it answers. */
+  /** Makes sure the voice engine exists and this tab is plugged into it. */
+  private join(): Promise<boolean> {
+    this.joinPromise ??= this.doJoin().finally(() => {
+      this.joinPromise = undefined;
+    });
+    return this.joinPromise;
+  }
+
+  private async doJoin(): Promise<boolean> {
+    this.joining = true;
+    try {
+      await chrome.runtime.sendMessage({ type: "tekkie:offscreen", create: true });
+      await this.connectWhenReady();
+      await new Promise((r) => setTimeout(r, 150)); // let the state snapshot arrive
+      return this.active;
+    } catch {
+      return false;
+    } finally {
+      this.joining = false;
+      if (!this.port) this.scheduleRejoin();
+    }
+  }
+
+  /** The voice engine may still be booting right after it is created: retry until it answers. */
   private async connectWhenReady() {
     for (let attempt = 0; attempt < 20; attempt++) {
       this.connect();
@@ -87,27 +122,30 @@ export class RemoteVoiceSession implements VoiceController {
     throw new Error("Tekkie's voice engine didn't start. Try reloading the extension.");
   }
 
+  private async send(msg: ToVoice) {
+    if (!this.port) await this.join();
+    if (!this.port) throw new Error("Tekkie's voice engine isn't running. Try reloading the extension.");
+    this.port.postMessage(msg);
+  }
+
   async start() {
     if (this.active) return;
     this.emit("state", "connecting");
     try {
-      await chrome.runtime.sendMessage({ type: "tekkie:offscreen", create: true });
-      await this.connectWhenReady();
+      await this.send({ type: "start" });
+      this.state = "connecting";
     } catch (err) {
       this.state = "error";
       this.emit("state", "error");
       this.emit("error", err instanceof Error ? err.message : String(err));
-      return;
     }
-    this.state = "connecting";
-    this.send({ type: "start" });
   }
 
   stop() {
-    this.send({ type: "stop" });
+    void this.send({ type: "stop" }).catch(() => {});
   }
 
   sendText(text: string) {
-    this.send({ type: "text", text });
+    void this.send({ type: "text", text }).catch(() => {});
   }
 }
