@@ -66,7 +66,10 @@ async function start() {
   if (session?.active) return;
   stopWakeWord();
   // Offscreen documents can't use chrome.storage, so the background worker reads the settings for us.
-  const settings = (await chrome.runtime.sendMessage({ type: "tekkie:settings" })) as Settings & { memory: string[] };
+  const settings = (await chrome.runtime.sendMessage({ type: "tekkie:settings" })) as Settings & { memory: string[]; chatHistory: HistoryLine[] };
+  // Pick up the conversation from before (this engine may have restarted) so Tekkie remembers it.
+  if (!history.length && settings.chatHistory?.length) history = settings.chatHistory;
+  const recent = history.slice(-16).map((l) => ({ who: l.who, text: l.text.slice(0, 300) }));
   const declarations = [...COMPANION_TOOLS, ...(settings.browserControl ? BROWSER_TOOLS : [])];
   const next = new LiveVoiceSession(
     settings.serverUrl.replace(/\/+$/, ""),
@@ -76,6 +79,7 @@ async function start() {
       language: settings.language || undefined,
       tutor: settings.tutor,
       memory: settings.memory,
+      recent,
     },
   );
   next.on("state", (s) => {
@@ -97,6 +101,7 @@ async function start() {
     if (final && text.trim()) {
       history.push({ who, text, at: Date.now() });
       if (history.length > 200) history = history.slice(-200);
+      void chrome.runtime.sendMessage({ type: "tekkie:history-save", lines: history.slice(-60) });
     }
     broadcast({ type: "caption", who, text, final });
   });

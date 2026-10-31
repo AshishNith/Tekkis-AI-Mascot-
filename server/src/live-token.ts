@@ -30,6 +30,7 @@ export interface TokenRequest {
   language?: unknown;
   tutor?: unknown;
   memory?: unknown;
+  recent?: unknown;
 }
 
 const ai = config.geminiApiKey
@@ -57,6 +58,15 @@ export async function createLiveToken(req: TokenRequest = {}): Promise<LiveToken
     ? req.memory.filter((m): m is string => typeof m === "string").map((m) => m.replace(/\s+/g, " ").trim().slice(0, 200)).filter(Boolean).slice(0, 40)
     : [];
 
+  // The last few lines of the conversation, so a new session carries on instead of starting blank.
+  const recent = Array.isArray(req.recent)
+    ? req.recent
+        .filter((l): l is { who: string; text: string } => !!l && typeof l === "object" && typeof (l as { text?: unknown }).text === "string")
+        .map((l) => ({ who: (l.who === "user" ? "user" : "tekkie") as "user" | "tekkie", text: l.text.replace(/\s+/g, " ").trim().slice(0, 300) }))
+        .filter((l) => l.text)
+        .slice(-16)
+    : [];
+
   const now = Date.now();
   const expiresAt = new Date(now + 30 * 60_000).toISOString();
   const token = await ai.authTokens.create({
@@ -68,7 +78,7 @@ export async function createLiveToken(req: TokenRequest = {}): Promise<LiveToken
         model: config.liveModel,
         config: {
           responseModalities: [Modality.AUDIO],
-          systemInstruction: buildPersona({ language, tutor: req.tutor === true, memory }),
+          systemInstruction: buildPersona({ language, tutor: req.tutor === true, memory, recent }),
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
         },
       },

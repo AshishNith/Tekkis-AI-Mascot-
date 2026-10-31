@@ -388,6 +388,82 @@ async function playOnYoutube(query: string): Promise<unknown> {
   return { opened: "YouTube results", note: "I couldn't find a video to start. Call read_page and click one." };
 }
 
+/** Pages that usually hold a player, for when nothing is audible right now (e.g. the song is paused). */
+const MEDIA_URL = /youtube\.com\/(watch|shorts)|music\.youtube\.com|open\.spotify\.com|soundcloud\.com|jiosaavn\.com|gaana\.com|wynk\.in|netflix\.com\/watch|primevideo\.com|hotstar\.com|twitch\.tv|vimeo\.com|\.mp[34]($|\?)/i;
+
+/** Runs inside the page: finds its player and applies the action. Must stay self-contained. */
+function pageMedia(action: string, amount: number) {
+  const players = [...document.querySelectorAll<HTMLMediaElement>("video, audio")].filter((m) => m.duration > 0 || !m.paused);
+  const media = players.find((m) => !m.paused) ?? players.sort((a, b) => (b.duration || 0) - (a.duration || 0))[0];
+  const press = (selector: string) => {
+    const el = document.querySelector<HTMLElement>(selector);
+    el?.click();
+    return !!el;
+  };
+  if (!media) return { ok: false, error: "no player on this page" };
+  switch (action) {
+    case "play":
+      void media.play();
+      break;
+    case "pause":
+      media.pause();
+      break;
+    case "toggle":
+      if (media.paused) void media.play();
+      else media.pause();
+      break;
+    case "mute":
+      media.muted = true;
+      break;
+    case "unmute":
+      media.muted = false;
+      break;
+    case "volume":
+      media.muted = false;
+      media.volume = Math.min(1, Math.max(0, amount));
+      break;
+    case "seek":
+      media.currentTime = Math.max(0, media.currentTime + amount);
+      break;
+    case "restart":
+      media.currentTime = 0;
+      break;
+    case "next":
+      if (!press(".ytp-next-button, ytmusic-player-bar .next-button, [data-testid='control-button-skip-forward'], .play-pause-container .next, button[aria-label*='Next' i]")) {
+        return { ok: false, error: "no next button on this page" };
+      }
+      break;
+    case "previous":
+      if (!press(".ytp-prev-button, ytmusic-player-bar .previous-button, [data-testid='control-button-skip-back'], button[aria-label*='Previous' i]")) media.currentTime = 0;
+      break;
+    default:
+      return { ok: false, error: `unknown media action ${action}` };
+  }
+  return { ok: true, playing: !media.paused, muted: media.muted, title: document.title.slice(0, 80) };
+}
+
+/** Pause, play, skip, mute or seek whatever is playing, on whichever tab it is in. */
+async function controlMedia(args: Record<string, unknown>): Promise<unknown> {
+  const action = String(args.action ?? "toggle");
+  const amount = Number(args.amount ?? (action === "seek" ? 10 : 0.5));
+  const tabs = (await chrome.tabs.query({})).filter((t) => t.id !== undefined && /^https?:/.test(t.url ?? ""));
+  let pick = args.tab_id !== undefined ? tabs.find((t) => t.id === Number(args.tab_id)) : undefined;
+  if (!pick) pick = tabs.filter((t) => t.audible).sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))[0];
+  if (!pick) pick = tabs.filter((t) => MEDIA_URL.test(t.url ?? "")).sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))[0];
+  if (!pick) pick = (await activeTab());
+  const host = new URL(pick.url ?? "about:blank").hostname;
+  if (siteRules(await loadSettings(), host).noControl) throw new Error(`The user turned off controlling ${host}.`);
+  if (action === "play" || action === "toggle") {
+    // Browsers only start playback reliably in a tab the user is looking at.
+    await chrome.tabs.update(pick.id!, { active: true });
+    if (pick.windowId !== undefined) await chrome.windows.update(pick.windowId, { focused: true });
+  }
+  const [result] = await chrome.scripting.executeScript({ target: { tabId: pick.id! }, func: pageMedia, args: [action, amount] });
+  const out = result?.result as { ok: boolean; error?: string; playing?: boolean; muted?: boolean; title?: string } | undefined;
+  if (!out?.ok) throw new Error(`Couldn't ${action} on "${(pick.title ?? host).slice(0, 50)}": ${out?.error ?? "no answer from the page"}. Try list_tabs and pass tab_id.`);
+  return { done: action, tab: (pick.title ?? host).slice(0, 60), playing: out.playing, muted: out.muted };
+}
+
 const LIST_TOOLS = new Set(["remember", "forget", "add_note", "list_notes", "add_todo", "complete_todo", "list_todos", "set_reminder"]);
 const HANDS_ON = new Set(["click", "type_text", "fill_form", "press_key", "hover"]);
 
@@ -395,6 +471,7 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<unk
   if (LIST_TOOLS.has(name)) return runListTool(name, args);
   if (name === "save_screenshot") return saveScreenshot();
   if (name === "play_on_youtube") return playOnYoutube(String(args.query ?? ""));
+  if (name === "control_media") return controlMedia(args);
   // Chrome-level tools don't need a page.
   if (name === "list_tabs") {
     const tabs = await chrome.tabs.query({});
@@ -573,7 +650,7 @@ async function captureScreen(): Promise<string> {
   return btoa(binary);
 }
 
-chrome.runtime.onMessage.addListener((msg: { type?: string; create?: boolean; name?: string; args?: Record<string, unknown> }, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: { type?: string; create?: boolean; name?: string; args?: Record<string, unknown>; lines?: unknown[] }, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
 
   if (msg?.type === "tekkie:open-mic-setup") {
@@ -600,8 +677,13 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; create?: boolean; na
     return true;
   } else if (msg?.type === "tekkie:settings") {
     // The voice engine can't read storage itself: hand it the settings plus what Tekkie remembers.
-    void Promise.all([loadSettings(), loadList("memory")]).then(([settings, memory]) => sendResponse({ ...settings, memory: memory.map((m) => m.text) }));
+    void Promise.all([loadSettings(), loadList("memory"), chrome.storage.local.get("chatHistory")]).then(([settings, memory, stored]) =>
+      sendResponse({ ...settings, memory: memory.map((m) => m.text), chatHistory: stored.chatHistory ?? [] }),
+    );
     return true;
+  } else if (msg?.type === "tekkie:history-save") {
+    // The conversation outlives the voice engine, so "play it again" still means something tomorrow.
+    void chrome.storage.local.set({ chatHistory: Array.isArray(msg.lines) ? msg.lines.slice(-60) : [] });
   } else if (msg?.type === "tekkie:tool") {
     runTool(String(msg.name), msg.args ?? {}).then(
       (output) => sendResponse({ ok: true, output }),

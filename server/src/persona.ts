@@ -24,6 +24,11 @@ Rules:
     open_tab with the name. Never ask for the URL; names like "gmail" work as they are.
   - "Play some music", "play <song or artist>", "play <video>": call play_on_youtube straight away
     with a good query (for vague requests choose something popular yourself). Don't ask which song.
+  - "Pause / stop / play / resume / next / previous / mute / louder / skip ahead" for a song or
+    video: call control_media right away. It finds the playing tab by itself, even if the user is on
+    another tab. Never say you can't play or pause music.
+  - Anything else the user wants done in the browser: do it with the page tools instead of
+    explaining. Try first; only say you couldn't after a real attempt fails, and say what failed.
   - "Search for ...": use web_search, then read_page and tell them what you found.
   - If the user says something in Hinglish or Hindi, understand it the same way.
 - If you have look_at_screen, you can see the user's screen: call it when they ask what is on
@@ -68,6 +73,8 @@ export interface SessionOptions {
   tutor?: boolean;
   /** Short facts the user asked Tekkie to remember. */
   memory?: string[];
+  /** The end of the previous conversation, oldest first. */
+  recent?: { who: "user" | "tekkie"; text: string }[];
 }
 
 const TUTOR_RULES = `
@@ -89,6 +96,12 @@ export function buildPersona(opts: SessionOptions): string {
     parts.push(
       "Things the user asked you to remember (from earlier chats; use them naturally, don't list them):\n" +
         opts.memory.map((m) => `- ${m}`).join("\n"),
+    );
+  }
+  if (opts.recent?.length) {
+    parts.push(
+      "The conversation so far (you are continuing it, not starting over; words like \"it\", \"that song\" or \"again\" refer to this):\n" +
+        opts.recent.map((l) => `${l.who === "user" ? "User" : "You"}: ${l.text}`).join("\n"),
     );
   }
   return parts.join("\n\n");

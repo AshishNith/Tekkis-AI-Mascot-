@@ -32,6 +32,20 @@ export const BROWSER_TOOLS: FunctionDeclaration[] = [
     description: "Take a screenshot of the page the user is looking at and save it as an image file in their Downloads/Tekkie folder (also noted in their notes).",
   },
   {
+    name: "control_media",
+    description:
+      "Control music or video playing in ANY tab, even one the user is not looking at: pause, play, skip, mute, volume, seek. It finds the right tab by itself (the one making sound, or a YouTube/Spotify/etc. tab). Use it for 'pause the song', 'stop the music', 'play it again', 'next song', 'mute', 'louder', 'skip 10 seconds'. Never say you can't; just call it.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["pause", "play", "toggle", "next", "previous", "mute", "unmute", "volume", "seek", "restart"] },
+        amount: { type: "number", description: "For volume: 0 to 1. For seek: seconds to jump (negative goes back)." },
+        tab_id: { type: "number", description: "Only if you know exactly which tab (from list_tabs)." },
+      },
+      required: ["action"],
+    },
+  },
+  {
     name: "read_page",
     description:
       "Look at the page the user is on. Returns its URL, title, a text excerpt and a numbered list of clickable/typable elements. Call this before click or type_text, and again after the page changes.",
