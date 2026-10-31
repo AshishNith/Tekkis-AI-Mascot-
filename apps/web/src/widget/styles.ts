@@ -115,7 +115,6 @@ button.chip.live { background: var(--tk-danger); }
 .stage:active { cursor: grabbing; }
 .stage canvas { width: 100%; height: 100%; display: block; }
 .controls {
-  pointer-events: auto;
   display: flex;
   gap: 6px;
   margin-top: -10px;
@@ -145,7 +144,6 @@ button.icon { width: 34px; padding: 0; justify-content: center; }
 .live .dot { animation: tk-pulse 1s ease-in-out infinite; }
 @keyframes tk-pulse { 50% { opacity: 0.3; } }
 form.type {
-  pointer-events: auto;
   display: none;
   margin-top: 8px;
   gap: 6px;
@@ -164,9 +162,9 @@ input {
   color: var(--tk-text);
   box-shadow: var(--tk-shadow);
 }
-/* Sitting on something: tuck the buttons away until the pointer comes by. */
-.perched:not(.hovering) .controls, .perched:not(.hovering) form.type { opacity: 0; pointer-events: none; }
-.controls { transition: opacity 0.2s; }
+/* The Talk and type buttons only show while the pointer is on Tekkie (or while you're typing). */
+.controls, form.type { opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; transform: translateY(-6px); }
+.tekkie.hovering .controls, .tekkie.hovering form.type, form.type:focus-within { opacity: 1; pointer-events: auto; transform: none; }
 
 /* Sleeping: floating z's. */
 .zz { position: absolute; right: 52px; top: 18px; font: 700 18px/1 ui-rounded, system-ui, sans-serif; color: #b9b2ff; opacity: 0; pointer-events: none; }

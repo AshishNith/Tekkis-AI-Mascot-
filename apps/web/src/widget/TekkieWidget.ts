@@ -372,14 +372,17 @@ export function mountTekkie(options: TekkieOptions) {
     stageWrap.classList.toggle("open", on);
     box.classList.toggle("hovering", on);
   }
-  stageWrap.addEventListener("pointerenter", () => {
-    clearTimeout(hoverTimer);
-    setHover(true);
-  });
-  stageWrap.addEventListener("pointerleave", () => {
-    clearTimeout(hoverTimer);
-    hoverTimer = window.setTimeout(() => setHover(false), 700); // time to reach a chip
-  });
+  // Hovering Tekkie, its chips or the Talk / type buttons keeps everything open.
+  for (const el of [stageWrap, $<HTMLDivElement>(".controls"), typeForm]) {
+    el.addEventListener("pointerenter", () => {
+      clearTimeout(hoverTimer);
+      setHover(true);
+    });
+    el.addEventListener("pointerleave", () => {
+      clearTimeout(hoverTimer);
+      hoverTimer = window.setTimeout(() => setHover(false), 700); // time to reach a chip or button
+    });
+  }
 
   stageWrap.addEventListener("click", (e) => {
     const c = (e.target as Element).closest<HTMLButtonElement>("button[data-act]");
