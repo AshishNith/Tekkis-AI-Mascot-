@@ -102,6 +102,11 @@ carries a fixed public key, so every install has the same ID (`apps/extension/EX
 exactly that extension plus its own URL and anything in `ALLOWED_ORIGINS`. Behind Render's proxy the rate limit uses
 the visitor's forwarded address.
 
+**Keep-awake and status:** free Render instances sleep after 15 idle minutes. Point a cron service (for example
+cron-job.org) at `https://tekkie.onrender.com/api/ping` every minute (GET or HEAD, expects `200 pong`). The backend
+status page at `https://tekkie.onrender.com/status` shows how long the instance has been awake, recent pings, voice
+sessions issued and memory, refreshing every 10 seconds; `/api/status` returns the same data as JSON.
+
 **Vercel** (a second copy of the site at https://tekkie.vercel.app): `npm run deploy`. It builds with
 `apps/web/.env.vercel`, which points the voice API and the download at the Render server.
 

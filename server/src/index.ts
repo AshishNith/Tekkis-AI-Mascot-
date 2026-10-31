@@ -3,6 +3,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { basename, extname, join, normalize } from "node:path";
 import { config } from "./config.js";
 import { createLiveToken, LANGUAGES, VOICES } from "./live-token.js";
+import { countRequest, countToken, recordPing, statusPage, statusSnapshot } from "./status.js";
 
 // Each token opens a paid voice session, so cap how many one client can mint.
 const TOKEN_LIMIT = 20;
@@ -123,6 +124,23 @@ const server = createServer(async (req, res) => {
   const origin = req.headers.origin;
   const path = new URL(req.url ?? "/", "http://x").pathname;
 
+  countRequest();
+
+  // Keep-awake ping for an external cron job, and the backend status page. Public and cheap, so they skip the
+  // origin check (cron services send no Origin; nothing here is secret).
+  if (path === "/api/ping" && (req.method === "GET" || req.method === "HEAD")) {
+    recordPing(req.method, req.headers["user-agent"]);
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "Content-Length": "4" });
+    return res.end(req.method === "HEAD" ? undefined : "pong");
+  }
+  if (path === "/api/status" && req.method === "GET") {
+    return sendJson(res, 200, statusSnapshot());
+  }
+  if ((path === "/status" || path === "/status/") && (req.method === "GET" || req.method === "HEAD")) {
+    res.writeHead(200, { ...SECURITY_HEADERS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+    return res.end(req.method === "HEAD" ? undefined : statusPage());
+  }
+
   if (path.startsWith("/api/")) {
     if (!originAllowed(origin)) return sendJson(res, 403, { error: "Origin not allowed" });
 
@@ -146,10 +164,16 @@ const server = createServer(async (req, res) => {
 
     if (path === "/api/live-token" && req.method === "POST") {
       const ip = clientIp(req);
-      if (rateLimited(ip)) return sendJson(res, 429, { error: "Too many voice sessions, try again later." }, origin);
+      if (rateLimited(ip)) {
+        countToken("limited");
+        return sendJson(res, 429, { error: "Too many voice sessions, try again later." }, origin);
+      }
       try {
-        return sendJson(res, 200, await createLiveToken(await readJson(req)), origin);
+        const token = await createLiveToken(await readJson(req));
+        countToken("ok");
+        return sendJson(res, 200, token, origin);
       } catch (err) {
+        countToken("error");
         console.error("[live-token]", err);
         const message = err instanceof Error ? err.message : "Could not create voice token";
         return sendJson(res, 500, { error: message }, origin);
