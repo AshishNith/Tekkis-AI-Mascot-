@@ -14,7 +14,7 @@
     "build:extension": "npm run build -w apps/extension",
     "start": "npm run start -w server",
     "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w server",
-    "deploy": "npm run build:vercel -w apps/web && vercel link --cwd apps/web/dist --yes --project tekkie && vercel deploy --cwd apps/web/dist --prod --yes",
+    "deploy": "npm run build:vercel -w apps/web && npx -y vercel@latest link --cwd apps/web/dist --yes --project tekkie && npx -y vercel@latest deploy --cwd apps/web/dist --prod --yes",
     "build:render": "npm run build -w apps/web && npm run build -w server && node scripts/package-extension.mjs"
   },
   "engines": {
