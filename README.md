@@ -21,8 +21,11 @@ Add your Gemini API key (from https://aistudio.google.com/apikey) to `.env` as `
 npm run dev
 ```
 
-Open http://localhost:5173, tap Tekkie (or press **Talk**), allow the microphone and start talking.
-Headphones give the best experience (no echo).
+Open http://localhost:5173 for the landing page: a 3D Tekkie that walks from section to section as you
+scroll, looks at your pointer, reacts to clicks and to the cards you hover, and changes body and outfit
+with the mode picker. **Get Tekkie** mounts the real floating widget on the page.
+Open http://localhost:5173/playground.html for the developer playground: tap Tekkie (or press **Talk**),
+allow the microphone and start talking. Headphones give the best experience (no echo).
 
 To check which realtime models your key can use:
 
@@ -81,6 +84,27 @@ npm run build && npm start
 
 The server then serves the built site and the API on `PORT` (default 8787).
 
+## Deploying
+
+The whole thing (website, voice-token API and the downloadable extension) runs as one Node web service.
+
+**Render** (live at https://tekkie.onrender.com):
+
+| Setting | Value |
+|---|---|
+| Build command | `npm ci --include=dev && npm run build:render` |
+| Start command | `npm start` |
+| Environment | `GEMINI_API_KEY` (secret, set in the Render dashboard), `GEMINI_LIVE_MODEL`, `GEMINI_VOICE`, `ALLOWED_ORIGINS=https://tekkie.vercel.app`, `TEKKIE_SERVER_URL=https://tekkie.onrender.com` |
+
+`build:render` builds the site and server, then builds the Chrome extension pointed at `TEKKIE_SERVER_URL` and zips it to
+`/downloads/tekkie-extension.zip`, which the website's **Download for Chrome** buttons serve. The extension's manifest
+carries a fixed public key, so every install has the same ID (`apps/extension/EXTENSION_ID`) and the server allows
+exactly that extension plus its own URL and anything in `ALLOWED_ORIGINS`. Behind Render's proxy the rate limit uses
+the visitor's forwarded address.
+
+**Vercel** (a second copy of the site at https://tekkie.vercel.app): `npm run deploy`. It builds with
+`apps/web/.env.vercel`, which points the voice API and the download at the Render server.
+
 ## How it works
 
 ```
@@ -100,7 +124,9 @@ Tekkie widget ── POST /api/live-token ───► mints 1-use ephemeral tok
 
 | Path | What |
 |---|---|
-| `apps/web/src/mascot/TekkieCharacter.ts` | The 3D character (Three.js): hover, blink, cursor-follow, lip sync, wave, states |
+| `apps/web/index.html`, `src/landing.ts`, `src/landing.css` | Landing page: one fixed 3D stage, scroll-driven stops, perches on cards, mode picker |
+| `apps/web/playground.html`, `src/main.ts` | Developer playground: bodies, skins, hats, custom .glb, voice server status |
+| `apps/web/src/mascot/TekkieCharacter.ts` | The 3D character (Three.js): hover, blink, cursor-follow, lip sync, wave, states, stage placement |
 | `apps/web/src/mascot/skins.ts` | Skins as data (colours + accessory) — basis for the skins store |
 | `apps/web/src/voice/LiveVoiceSession.ts` | Realtime conversation with Gemini Live: states, captions, interruptions |
 | `apps/web/src/voice/audio.ts`, `pcm-capture-worklet.js` | Mic capture (16 kHz PCM) and gap-free playback with loudness for lip sync |

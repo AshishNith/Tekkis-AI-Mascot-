@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Tekkie">
+  <!-- Tekkie icon mark, traced from the generated artwork. Outline #2a1a7a, body #8a5cf8, orange antenna bulb as in the lockup. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#a07cff"/>
+      <stop offset="0.55" stop-color="#8a5cf8"/>
+      <stop offset="1" stop-color="#7a4ef0"/>
+    </linearGradient>
+  </defs>
+  <g fill="#2a1a7a">
+    <!-- ear cups -->
+    <rect x="159" y="440" width="92" height="230" rx="40"/>
+    <rect x="773" y="440" width="92" height="230" rx="40"/>
+    <!-- antenna stem and bulb -->
+    <rect x="482" y="236" width="60" height="84" rx="14"/>
+    <circle cx="512" cy="193" r="63" fill="#cc4a00"/>
+    <!-- head outline -->
+    <rect x="224" y="293" width="576" height="517" rx="108"/>
+  </g>
+  <!-- ear cup faces -->
+  <rect x="186" y="467" width="38" height="176" rx="19" fill="#7a4ef0"/>
+  <rect x="800" y="467" width="38" height="176" rx="19" fill="#7a4ef0"/>
+  <!-- antenna -->
+  <rect x="497" y="252" width="30" height="60" rx="8" fill="#8a5cf8"/>
+  <circle cx="512" cy="193" r="40" fill="#ff5c00"/>
+  <circle cx="498" cy="179" r="13" fill="#ffb347"/>
+  <!-- head face -->
+  <rect x="251" y="320" width="522" height="463" rx="84" fill="url(#body)"/>
+  <!-- eyes -->
+  <ellipse cx="373" cy="532" rx="58" ry="75" fill="#2a1a7a"/>
+  <ellipse cx="650" cy="532" rx="58" ry="75" fill="#2a1a7a"/>
+  <circle cx="389" cy="505" r="20" fill="#ffffff"/>
+  <circle cx="666" cy="505" r="20" fill="#ffffff"/>
+  <!-- smile -->
+  <path d="M437 640 Q512 700 589 640" fill="none" stroke="#2a1a7a" stroke-width="28" stroke-linecap="round"/>
+</svg>

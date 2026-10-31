@@ -1,0 +1,48 @@
+/* Tailwind 4 for the shadcn components only.
+   We import the theme and utilities layers but NOT preflight (the global reset), so the hand-written
+   landing page styles in landing.css keep working untouched. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+
+/* shadcn colour tokens, mapped onto the landing page's own variables. */
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--fg-2);
+  --color-muted: var(--line-2);
+  --color-muted-foreground: var(--muted);
+  --color-secondary-foreground: var(--muted);
+  --color-border: var(--line);
+  --color-primary: var(--primary);
+
+  --animate-marquee: marquee var(--duration) infinite linear;
+  --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
+}
+
+/* Respect reduced motion: freeze the marquees. */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="marquee"] > div {
+    animation: none !important;
+  }
+}

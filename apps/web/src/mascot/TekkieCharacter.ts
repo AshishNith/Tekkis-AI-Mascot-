@@ -121,6 +121,11 @@ export class TekkieCharacter {
 
   private rig = new THREE.Group();
   private float = new THREE.Group();
+  private key: THREE.DirectionalLight;
+  private keyBase = new THREE.Vector3(2.6, 4.5, 4.5);
+  /** Extra body turn set by the host page (e.g. facing the copy next to it). */
+  private yawOffset = 0;
+  private camTarget = new THREE.Vector3(0, 0.05, 0);
   private form!: Form;
   private shadowFloor: THREE.Mesh;
   private blob: THREE.Mesh;
@@ -186,8 +191,10 @@ export class TekkieCharacter {
 
     this.scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x6b5a8c, 0.5));
     const key = new THREE.DirectionalLight(0xfff4e8, 2.2);
-    key.position.set(2.6, 4.5, 4.5);
+    key.position.copy(this.keyBase);
     key.castShadow = true;
+    this.key = key;
+    this.scene.add(key.target);
     key.shadow.mapSize.set(1024, 1024);
     key.shadow.camera.left = key.shadow.camera.bottom = -2.6;
     key.shadow.camera.right = key.shadow.camera.top = 2.6;
@@ -350,7 +357,7 @@ export class TekkieCharacter {
     this.confettiT = 0;
     for (const c of this.confetti) {
       c.mesh.visible = true;
-      c.mesh.position.set((Math.random() - 0.5) * 0.4, 1.1, (Math.random() - 0.5) * 0.4);
+      c.mesh.position.set((Math.random() - 0.5) * 0.4, 1.1 * this.rig.scale.y, (Math.random() - 0.5) * 0.4).add(this.rig.position);
       c.vel.set((Math.random() - 0.5) * 3.2, 2.6 + Math.random() * 2.2, (Math.random() - 0.5) * 1.5);
       c.spin.set(Math.random() * 10, Math.random() * 10, Math.random() * 10);
       (c.mesh.material as THREE.MeshBasicMaterial).opacity = 1;
@@ -359,6 +366,38 @@ export class TekkieCharacter {
 
   get dancing() {
     return this.danceT >= 0;
+  }
+
+  /**
+   * Moves the whole character (and its light and shadow) around the stage, so a page can walk
+   * Tekkie from one section to the next. Scale is uniform; yaw is an extra body turn in radians.
+   */
+  place(x: number, y: number, z = 0, scale = 1, yaw = 0) {
+    this.rig.position.set(x, y, z);
+    this.rig.scale.setScalar(scale);
+    this.yawOffset = yaw;
+    this.key.position.copy(this.keyBase).add(this.rig.position);
+    this.key.target.position.copy(this.rig.position);
+  }
+
+  /** Orbits the camera around the stage: azimuth/elevation in radians, distance in scene units. */
+  setCamera(azimuth: number, elevation: number, distance: number, targetY = 0.05) {
+    this.camTarget.set(0, targetY, 0);
+    this.camera.position.set(
+      Math.sin(azimuth) * Math.cos(elevation) * distance,
+      Math.sin(elevation) * distance + targetY,
+      Math.cos(azimuth) * Math.cos(elevation) * distance,
+    );
+    this.camera.lookAt(this.camTarget);
+    // Keep the projection usable before the next render (toScreen reads these matrices).
+    this.camera.updateMatrixWorld();
+    this.camera.matrixWorldInverse.copy(this.camera.matrixWorld).invert();
+  }
+
+  /** Where a point on the character (stage units, relative to its feet) lands on the canvas, in pixels. */
+  toScreen(dx: number, dy: number, dz: number, width: number, height: number) {
+    const v = new THREE.Vector3(dx, dy, dz).multiplyScalar(this.rig.scale.x).add(this.rig.position).project(this.camera);
+    return { x: ((v.x + 1) / 2) * width, y: ((1 - v.y) / 2) * height, visible: v.z < 1 };
   }
 
   resize(width: number, height: number) {
@@ -465,6 +504,7 @@ export class TekkieCharacter {
     const headSeparate = form.head !== form.root;
     const bodyLook = headSeparate ? 0.5 : 1;
     this.rig.rotation.y =
+      this.yawOffset +
       lx * (0.42 + hover * 0.3) * turnAway * bodyLook +
       this.faceYaw +
       (s === "connecting" ? Math.sin(t * 6) * 0.08 : 0) +

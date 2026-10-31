@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tekkie Playground</title>
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/brand/tekkie-mark.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/brand/icon-180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/src/page.css" />
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Prototype · step 1</p>
+      <h1>Meet Tekkie</h1>
+      <p class="lead">
+        A 3D AI buddy that floats over your screen and talks with you in real time. Tap Tekkie (or press
+        <strong>Talk</strong>), allow the microphone, and just speak. You can interrupt any time.
+      </p>
+
+      <div id="server-status" class="status" role="status">Checking voice server…</div>
+
+      <section>
+        <h2>Body</h2>
+        <p class="hint">Three built-in bodies, or drop in your own rigged <code>.glb</code> (Meshy, Ready Player Me, Mixamo…).</p>
+        <div id="forms" class="skins"></div>
+        <p class="hint"><label>Custom model: <input id="model" type="file" accept=".glb,model/gltf-binary" /></label></p>
+      </section>
+
+      <section>
+        <h2>Skins</h2>
+        <p class="hint">Skins are pure data, so seasonal drops for the store need no code changes.</p>
+        <div id="skins" class="skins"></div>
+      </section>
+
+      <section>
+        <h2>Hats &amp; outfits</h2>
+        <div id="hats" class="skins"></div>
+      </section>
+
+      <section>
+        <h2>Things to try</h2>
+        <ul>
+          <li>"Hey Tekkie, tell me a joke about sneakers."</li>
+          <li>"Give me a hint for solving 2x + 6 = 14 — don't tell me the answer."</li>
+          <li>Ask something in Hindi, Arabic or Afrikaans.</li>
+          <li>Start talking while Tekkie is talking: it stops and listens.</li>
+          <li>Drag Tekkie anywhere; it remembers the spot.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>What's in this step</h2>
+        <ul>
+          <li>Procedural 3D character (Three.js): hover, blink, eyes follow your cursor, lip sync, waves hello.</li>
+          <li>Realtime voice via Gemini Live, streamed straight from the browser with a short-lived token.</li>
+          <li>States shown on the antenna: green = listening, yellow = thinking, glow = talking, red = error.</li>
+        </ul>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

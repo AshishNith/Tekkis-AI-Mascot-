@@ -1,60 +1,296 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tekkie Playground</title>
-    <link rel="stylesheet" href="/src/page.css" />
+    <title>Tekkie: Your AI Buddy, Live on Every Page</title>
+    <meta name="description" content="Tekkie is a 3D AI buddy that floats over your browser, talks with you in real time, reads what you see and gets things done. Install in minutes." />
+    <meta name="theme-color" content="#ff5c00" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/brand/tekkie-mark.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/brand/icon-180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Tekkie" />
+    <meta property="og:title" content="Tekkie: Your AI Buddy, Live on Every Page" />
+    <meta property="og:description" content="A 3D AI buddy that floats over your browser, talks with you in real time, reads what you see and gets things done." />
+    <meta property="og:image" content="/brand/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Tekkie: Your AI Buddy, Live on Every Page" />
+    <meta name="twitter:image" content="/brand/og.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/landing.css" />
   </head>
   <body>
-    <main>
-      <p class="eyebrow">Prototype · step 1</p>
-      <h1>Meet Tekkie</h1>
-      <p class="lead">
-        A 3D AI buddy that floats over your screen and talks with you in real time. Tap Tekkie (or press
-        <strong>Talk</strong>), allow the microphone, and just speak. You can interrupt any time.
-      </p>
+    <a class="skip" href="#main">Skip to main content</a>
 
-      <div id="server-status" class="status" role="status">Checking voice server…</div>
+    <!-- One fixed 3D stage behind the whole page: Tekkie walks from section to section as you scroll. -->
+    <canvas id="stage" aria-hidden="true"></canvas>
+    <div id="bubble" class="bubble" aria-live="polite"></div>
 
-      <section>
-        <h2>Body</h2>
-        <p class="hint">Three built-in bodies, or drop in your own rigged <code>.glb</code> (Meshy, Ready Player Me, Mixamo…).</p>
-        <div id="forms" class="skins"></div>
-        <p class="hint"><label>Custom model: <input id="model" type="file" accept=".glb,model/gltf-binary" /></label></p>
+    <div class="banner" id="banner">
+      <a href="#modes"><span>Introducing</span> <strong>Tutor Mode for kids</strong></a>
+      <button type="button" class="banner-close" aria-label="Dismiss banner" id="banner-close">×</button>
+    </div>
+
+    <header class="nav" id="nav">
+      <div class="wrap nav-inner">
+        <a class="logo" href="#top" aria-label="Tekkie">
+          <img src="/brand/tekkie-mark.svg" width="30" height="30" alt="" />
+          <span>Tekkie</span>
+        </a>
+        <button type="button" class="menu" id="menu" aria-expanded="false" aria-controls="links" aria-label="Menu"><span></span><span></span></button>
+        <nav class="links" id="links">
+          <a href="#modes">Modes <i class="chev"></i></a>
+          <a href="#advantage">Why Tekkie <i class="chev"></i></a>
+          <a href="#features">Features <i class="chev"></i></a>
+          <a href="#paths">For Business <i class="chev"></i></a>
+          <a href="#faq">Company <i class="chev"></i></a>
+          <div class="nav-actions">
+            <a class="ghost" href="/playground.html">Playground</a>
+            <a class="btn dark" href="#paths">Embed it</a>
+            <a class="btn primary" href="#install">Get Tekkie</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- Hero -->
+      <section class="hero" id="hero" data-stop>
+        <div class="sky" aria-hidden="true">
+          <i class="cloud c1"></i><i class="cloud c2"></i><i class="cloud c3"></i><i class="cloud c4"></i><i class="cloud c5"></i><i class="cloud c6"></i>
+        </div>
+        <div class="wrap hero-inner">
+          <h1 data-reveal>Your Browser Buddy<br />at the <em>Speed of Thought.</em></h1>
+          <p class="lead" data-reveal style="--d:80ms">No menus, no typing. Just talk.<br />A 3D AI mascot that lives on every page, built for people who ship.</p>
+          <div class="cta-row" data-reveal style="--d:160ms">
+            <a class="btn primary lg" href="#install">Get Tekkie now</a>
+            <a class="btn ghost lg" href="#features">See what it does</a>
+          </div>
+          <p class="hint" data-reveal style="--d:240ms">Tap Tekkie anywhere on this page. It notices. Or <button class="linkish" type="button" data-launch>talk to it right here</button>, no install.</p>
+        </div>
       </section>
 
-      <section>
-        <h2>Skins</h2>
-        <p class="hint">Skins are pure data, so seasonal drops for the store need no code changes.</p>
-        <div id="skins" class="skins"></div>
+      <!-- Built-with wordmarks (same role as Corgi's customer logo wall) -->
+      <section class="wall" aria-label="Built with">
+        <div class="wrap wall-row">
+          <span>Gemini Live</span><span>Chrome MV3</span><span>Three.js</span><span>Web Audio</span><span>TypeScript</span><span>Vite</span><span>WebGL</span>
+        </div>
       </section>
 
-      <section>
-        <h2>Hats &amp; outfits</h2>
-        <div id="hats" class="skins"></div>
+      <!-- Statement + stats -->
+      <section class="statement" data-stop>
+        <div class="wrap">
+          <h2 class="statement-h" data-reveal><strong>Tekkie</strong> is a voice-first, 3D AI buddy built for the open web. That means instant answers, real browser control, and a character that actually feels alive.</h2>
+          <ul class="stats" data-reveal style="--d:120ms">
+            <li><b>&lt; 5 min</b><span>from install to first conversation</span></li>
+            <li><b>3 bodies</b><span>plus your own rigged .glb</span></li>
+            <li><b>Every tab</b><span>it follows you and keeps the thread</span></li>
+            <li><b>1 line</b><span>to embed it on your own site</span></li>
+          </ul>
+        </div>
       </section>
 
-      <section>
-        <h2>Things to try</h2>
-        <ul>
-          <li>"Hey Tekkie, tell me a joke about sneakers."</li>
-          <li>"Give me a hint for solving 2x + 6 = 14 — don't tell me the answer."</li>
-          <li>Ask something in Hindi, Arabic or Afrikaans.</li>
-          <li>Start talking while Tekkie is talking: it stops and listens.</li>
-          <li>Drag Tekkie anywhere; it remembers the spot.</li>
-        </ul>
+      <!-- Modes (mirrors Corgi's "journey" package picker) -->
+      <section class="modes" id="modes" data-stop>
+        <div class="wrap modes-grid">
+          <div class="stage-gap" aria-hidden="true"></div>
+          <div class="modes-copy">
+            <p class="eyebrow">MODES</p>
+            <h2 data-reveal>A Buddy Designed Around Your Day</h2>
+            <p class="sub" data-reveal style="--d:80ms">From your first tab to your last, we've built a mode for every moment. Pick one and Tekkie changes body, outfit and manners.</p>
+            <div class="mode-tabs" role="tablist" aria-label="Modes" id="mode-tabs">
+              <button role="tab" type="button" aria-selected="true" data-mode="browse">Browse</button>
+              <button role="tab" type="button" aria-selected="false" data-mode="learn">Learn</button>
+              <button role="tab" type="button" aria-selected="false" data-mode="work">Work</button>
+              <button role="tab" type="button" aria-selected="false" data-mode="play">Play</button>
+            </div>
+            <div class="mode-card" id="mode-card">
+              <p class="mode-title">Modules included in this <em id="mode-name">Browse</em> package:</p>
+              <div class="chips" id="chips"></div>
+              <p class="mode-blurb" id="mode-blurb">Click any <strong>module</strong> to see what it does.</p>
+              <div class="mode-actions">
+                <button class="btn primary" type="button" data-launch>Try this mode</button>
+                <a class="ghost-link" href="#features">Build a custom package →</a>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section>
-        <h2>What's in this step</h2>
-        <ul>
-          <li>Procedural 3D character (Three.js): hover, blink, eyes follow your cursor, lip sync, waves hello.</li>
-          <li>Realtime voice via Gemini Live, streamed straight from the browser with a short-lived token.</li>
-          <li>States shown on the antenna: green = listening, yellow = thinking, glow = talking, red = error.</li>
-        </ul>
+      <!-- Advantage (mirrors "Legacy carriers vs Corgi") -->
+      <section class="advantage" id="advantage" data-stop>
+        <div class="wrap">
+          <p class="eyebrow">WHY TEKKIE</p>
+          <h2 data-reveal>Our Unique Advantage</h2>
+          <p class="sub" data-reveal style="--d:80ms">Assistants that live in a side panel make you do the work. Tekkie lives in the page and does it with you.</p>
+          <div class="compare">
+            <article class="col legacy" data-reveal>
+              <h3>Legacy Assistants</h3>
+              <p>A chat box in a side panel. You type, you wait, you copy, you paste. It forgets you between tabs, can't press a button for you, and has no idea what's on your screen.</p>
+              <ul class="steps">
+                <li>Open the panel</li><li>Type the question</li><li>Copy the answer</li><li>Find the button yourself</li><li>Explain it all again tomorrow</li>
+              </ul>
+            </article>
+            <article class="col tekkie" data-reveal style="--d:120ms">
+              <h3>Tekkie</h3>
+              <p>Tekkie is the voice-first, full-stack AI buddy for the browser. It's faster and more useful because <strong>it lives in the page</strong>. It hears you, sees what you see, clicks with real input, and remembers, so you move faster and keep the speed.</p>
+              <ul class="ticks">
+                <li>Talk; it talks back in real time, interruptible</li>
+                <li>Reads the page and your screen when you ask</li>
+                <li>Clicks, types, scrolls and opens tabs for you</li>
+                <li>Follows you from tab to tab with the same conversation</li>
+                <li>A 3D character with moods, games and a daily streak</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Two paths (mirrors "Self-serve vs Book a demo") -->
+      <section class="paths" id="paths" data-stop>
+        <div class="wrap paths-grid">
+          <div class="stage-gap" aria-hidden="true"></div>
+          <div class="paths-copy">
+            <h2 data-reveal>Get Tekkie Instantly or Put It on Your Site</h2>
+            <div class="path-cards">
+              <article class="path" data-reveal>
+                <p class="eyebrow">SELF-SERVE</p>
+                <h3>Install, allow the mic once, and talk.</h3>
+                <p>Download the Chrome extension, let it use your microphone, and Tekkie shows up on every site. Headphones give the best experience.</p>
+                <a class="btn primary" href="/downloads/tekkie-extension.zip" data-download download>Download for Chrome</a>
+                <button class="linkish" type="button" data-launch>or try it on this page first</button>
+              </article>
+              <article class="path" data-reveal style="--d:120ms">
+                <p class="eyebrow">FOR BUSINESS</p>
+                <h3>Embed: one line, your brand, your knowledge.</h3>
+                <p>Drop the widget on your own website with your colours, your own skins and a knowledge base that answers like your team would.</p>
+                <a class="btn dark" href="#faq">Talk to us</a>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Install: download the extension and load it -->
+      <section class="install" id="install">
+        <div class="wrap">
+          <p class="eyebrow">INSTALL</p>
+          <h2 data-reveal>Get Tekkie on Chrome in Two Minutes</h2>
+          <p class="sub center" data-reveal style="--d:80ms">Works in Chrome, Edge, Brave and Arc. Tekkie talks through our hosted voice server, so there is nothing else to set up.</p>
+          <div class="install-cta" data-reveal style="--d:140ms">
+            <a class="btn primary lg" href="/downloads/tekkie-extension.zip" data-download download><span class="btn-ico" data-icon="download"></span>Download Tekkie for Chrome</a>
+            <button class="btn ghost lg" type="button" data-launch>Try it on this page first</button>
+          </div>
+          <p class="install-meta" id="install-meta">Chrome extension &middot; zip</p>
+          <ol class="install-steps">
+            <li data-reveal><span class="num">1</span><h3>Unzip it</h3><p>Extract <code>tekkie-extension.zip</code>. You get a folder called <code>tekkie-extension</code>.</p></li>
+            <li data-reveal style="--d:60ms"><span class="num">2</span><h3>Open extensions</h3><p>Paste <button class="copy" type="button" data-copy="chrome://extensions">chrome://extensions</button> into the address bar and switch on <strong>Developer mode</strong>, top right.</p></li>
+            <li data-reveal style="--d:120ms"><span class="num">3</span><h3>Load it</h3><p>Click <strong>Load unpacked</strong> and pick the <code>tekkie-extension</code> folder.</p></li>
+            <li data-reveal style="--d:180ms"><span class="num">4</span><h3>Say hi</h3><p>Allow the microphone in the tab that opens, pin Tekkie from the puzzle icon, and start talking.</p></li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- Feature cards (mirrors "Explore Our Main Policies") -->
+      <section class="features" id="features" data-stop>
+        <div class="wrap">
+          <h2 data-reveal>Explore Everything Tekkie Does</h2>
+          <p class="sub center" data-reveal style="--d:80ms">Don't over-build for the future or under-build for the now. Switch modules on as you go, from first install to power user. Hover a card and Tekkie reacts.</p>
+          <div class="cards">
+            <article class="card feature" data-emote="laugh" data-reveal>
+              <span class="ico" data-icon="mic"></span><h3>Realtime voice</h3>
+              <p>Speech-to-speech on Gemini Live. Start talking while it's talking and it stops to listen. Pick its voice and reply language, and ask in Hindi, Arabic or Afrikaans.</p>
+              <div class="wave" aria-hidden="true"></div>
+              <a href="#faq">Learn more about realtime voice</a>
+            </article>
+            <article class="card" data-emote="think" data-reveal style="--d:60ms">
+              <span class="ico" data-icon="eye"></span><h3>Screen reading</h3>
+              <p>Ask "what's on my screen?" and it looks at your tab, only when you ask. Highlight text, right-click, and ask Tekkie to explain, summarize or translate.</p>
+              <a href="#faq">Learn more about screen reading</a>
+            </article>
+            <article class="card" data-emote="celebrate" data-reveal style="--d:120ms">
+              <span class="ico" data-icon="cursor"></span><h3>Browser agent</h3>
+              <p>"Search for sneakers, click the second result, scroll down." Real trusted input, a ring around what it touches, and it asks before buy, pay or delete.</p>
+              <a href="#faq">Learn more about the browser agent</a>
+            </article>
+            <article class="card" data-emote="nod" data-reveal style="--d:180ms">
+              <span class="ico" data-icon="cap"></span><h3>Tutor mode</h3>
+              <p>Hints, not answers. Kid-safe topics, no buying or signing up, locked behind a parent PIN.</p>
+              <a href="#faq">Learn more about tutor mode</a>
+            </article>
+            <article class="card" data-emote="love" data-reveal style="--d:240ms">
+              <span class="ico" data-icon="cookie"></span><h3>Pet care &amp; games</h3>
+              <p>Feed it, play with it, let it nap. Rock paper scissors, tic-tac-toe, memory match and quick maths. Bond levels unlock skins.</p>
+              <a href="#faq">Learn more about care and games</a>
+            </article>
+            <article class="card" data-emote="shrug" data-reveal style="--d:300ms">
+              <span class="ico" data-icon="note"></span><h3>Memory &amp; notes</h3>
+              <p>"Note this." "Remind me in 10 minutes." It remembers what you ask it to, and you can delete any of it, or everything.</p>
+              <a href="#faq">Learn more about memory</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Testimonials: React island (3D marquee), loaded when it nears the viewport -->
+      <section class="testimonials" id="testimonials" data-stop>
+        <div class="wrap">
+          <p class="eyebrow">EARLY FEEDBACK</p>
+          <h2 data-reveal>Built for the Way People Actually Browse</h2>
+          <p class="sub center" data-reveal style="--d:80ms">Hover a column to pause it.</p>
+          <div id="testimonials-root" class="tm-root" role="region" aria-label="Sample testimonials"></div>
+          <p class="tm-note">Sample quotes for layout. Replace with real feedback before launch.</p>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="faq" id="faq" data-stop>
+        <div class="wrap faq-grid">
+          <div class="stage-gap" aria-hidden="true"></div>
+          <div class="faq-copy">
+            <h2 data-reveal>FAQ</h2>
+            <details open><summary>Does my voice or screen go anywhere I don't expect?</summary><p>Audio streams directly between your browser and the model. The API key never reaches the browser; you get a single-use token that only opens a Tekkie session. Screenshots are taken only when you ask, and you can switch that off.</p></details>
+            <details><summary>Does it work on every website?</summary><p>Tekkie draws itself inside the page in its own shadow root and the voice engine runs in the extension's background, so strict site security rules can't block it and the conversation survives page changes. You can hide it, or stop it clicking, on specific sites.</p></details>
+            <details><summary>Is it safe for kids?</summary><p>Tutor mode gives hints instead of answers, keeps to child-friendly topics, never buys or signs up for anything, and is locked behind a parent PIN. It defaults to the strictest settings.</p></details>
+            <details><summary>Can I use my own 3D character?</summary><p>Yes. Drop in a rigged .glb from Meshy, Ready Player Me, Mixamo or your own artist. Clips named idle, walk, wave, dance and talk, plus blend shapes for the mouth and blinking, are picked up automatically.</p></details>
+            <details><summary>What does it cost?</summary><p>Free to start. Premium and Premium+ plans with a skins store and referral codes arrive at launch; the B2B widget is priced per site.</p></details>
+            <details><summary>What do I need?</summary><p>Chrome, a microphone, and ideally headphones so Tekkie doesn't hear itself. That's it.</p></details>
+          </div>
+        </div>
+      </section>
+
+      <!-- Closing CTA (mirrors "Built for Founders. All Your Insurance Under One Roof.") -->
+      <section class="closing" id="cta" data-stop>
+        <div class="wrap">
+          <h2 data-reveal>Built for People Who Ship.<br />One Buddy, Every Page.</h2>
+          <a class="btn primary lg" href="#install" data-reveal style="--d:120ms">Get Tekkie today</a>
+        </div>
       </section>
     </main>
-    <script type="module" src="/src/main.ts"></script>
+
+    <footer class="footer" id="footer" data-stop>
+      <div class="wrap foot-grid">
+        <div class="foot-brand">
+          <a class="logo" href="#top"><img src="/brand/tekkie-mark.svg" width="26" height="26" alt="" /><span>Tekkie</span></a>
+          <p>Your AI buddy, live on every page.</p>
+        </div>
+        <div><p class="eyebrow">PRODUCT</p><a href="#modes">Browse mode</a><a href="#modes">Learn mode</a><a href="#modes">Work mode</a><a href="#modes">Play mode</a></div>
+        <div><p class="eyebrow">USE CASES</p><a href="#features">Students</a><a href="#features">Shoppers</a><a href="#features">Makers</a><a href="#paths">Businesses</a></div>
+        <div><p class="eyebrow">COMPANY</p><a href="#advantage">About Tekkie</a><a href="#faq">FAQ</a><a href="/playground.html">Playground</a><a href="#paths">Partner with us</a></div>
+        <div><p class="eyebrow">RESOURCES</p><a href="#paths">Embed guide</a><a href="#faq">Privacy</a><a href="#faq">Kids &amp; parents</a><a href="#features">Bring your own .glb</a></div>
+      </div>
+      <div class="wrap foot-legal">
+        <p>Tekkie asks before collecting anything and keeps personal data on the device unless you opt in. No selling of personal data. Children's data needs parental consent; tutor mode defaults to the strictest settings.</p>
+        <p>© 2026 Tekkie. All rights reserved. <a href="#faq">Privacy</a> · <a href="#faq">Terms</a> · <a href="#faq">Disclaimers</a></p>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/landing.ts"></script>
   </body>
 </html>

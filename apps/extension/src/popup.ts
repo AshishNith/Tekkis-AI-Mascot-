@@ -398,7 +398,7 @@ async function checkServer(url: string) {
     }
   } catch {
     status.className = "note warn";
-    status.textContent = "Can't reach the server. Is npm run dev running?";
+    status.textContent = "Can't reach the server. It may be waking up; try again in a moment.";
   }
 }
 server.value = settings.serverUrl;

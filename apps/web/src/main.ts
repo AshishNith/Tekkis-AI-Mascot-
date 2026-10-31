@@ -3,7 +3,8 @@ import { ACCESSORIES, SKINS } from "./mascot/skins";
 import { FORMS } from "./mascot/TekkieCharacter";
 import { LiveVoiceSession } from "./voice/LiveVoiceSession";
 
-const tekkie = mountTekkie({ voice: new LiveVoiceSession("") });
+const API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? "").replace(/\/+$/, "");
+const tekkie = mountTekkie({ voice: new LiveVoiceSession(API_BASE) });
 
 function picker<T extends { id: string }>(el: HTMLElement, items: T[], label: (i: T) => string, pick: (i: T) => void, first = items[0].id) {
   for (const item of items) {
@@ -37,7 +38,7 @@ file.addEventListener("change", async () => {
 
 // Tell the developer whether voice is wired up.
 const statusEl = document.getElementById("server-status")!;
-fetch("/api/health")
+fetch(`${API_BASE}/api/health`)
   .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
   .then((h: { voiceConfigured: boolean; model: string }) => {
     if (h.voiceConfigured) {

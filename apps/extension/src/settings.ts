@@ -59,7 +59,8 @@ export interface StoredModel {
 
 export const DEFAULT_SETTINGS: Settings = {
   enabled: true,
-  serverUrl: "http://localhost:8787",
+  // Baked in at build time by scripts/package-extension.mjs; local builds talk to the dev server.
+  serverUrl: (import.meta.env.VITE_TEKKIE_SERVER_URL as string | undefined) || "http://localhost:8787",
   skinId: DEFAULT_SKIN.id,
   browserControl: true,
   screenReading: true,

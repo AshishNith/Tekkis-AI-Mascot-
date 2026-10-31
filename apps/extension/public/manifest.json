@@ -3,16 +3,63 @@
   "name": "Tekkie",
   "version": "0.1.0",
   "description": "A 3D AI buddy that floats over every page and talks with you in real time.",
-  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
-  "action": { "default_title": "Tekkie", "default_popup": "popup.html" },
-  "background": { "service_worker": "background.js", "type": "module" },
-  "permissions": ["storage", "offscreen", "debugger", "tabs", "activeTab", "scripting", "contextMenus", "alarms", "notifications", "downloads", "history", "bookmarks", "unlimitedStorage", "clipboardWrite"],
-  "commands": {
-    "toggle-talk": { "suggested_key": { "default": "Alt+Shift+T" }, "description": "Start or stop talking to Tekkie" },
-    "toggle-tekkie": { "suggested_key": { "default": "Alt+Shift+H" }, "description": "Show or hide Tekkie" }
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxKVbZkIYgLI5dSbIHC8aXFaROuNWF9mekOQMV14K98M4cUntIC7TvHty9v4nr+9Oqa8r8716/B9TAnmquOiCj14u1Xv0K4VKjYfSWBkm0tIKnFPC5CCg5FGNbwvARtjSlQW2AuNcjaK0+5nx2WkszOEkxENsmP1jp9nRfaljya9v4hPZdmDee552Al0uc98BeCDbs+RTGGzGICVC2z/QZI0Ojsldb7mKhggd2GUpAw06D4uiz9jMh2yEOjXkzWe0tP3fhJ9Y3P2tT6FkUCm5hdH15YDgT92Fyj3YbiJc1SKDywLD38dXeYuVG+wxziTBDvhpf5xaPbZeTW4Ketx8MwIDAQAB",
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
   },
-  "host_permissions": ["http://localhost:8787/*", "<all_urls>"],
+  "action": {
+    "default_title": "Tekkie",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "offscreen",
+    "debugger",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "contextMenus",
+    "alarms",
+    "notifications",
+    "downloads",
+    "history",
+    "bookmarks",
+    "unlimitedStorage",
+    "clipboardWrite"
+  ],
+  "commands": {
+    "toggle-talk": {
+      "suggested_key": {
+        "default": "Alt+Shift+T"
+      },
+      "description": "Start or stop talking to Tekkie"
+    },
+    "toggle-tekkie": {
+      "suggested_key": {
+        "default": "Alt+Shift+H"
+      },
+      "description": "Show or hide Tekkie"
+    }
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "content_scripts": [
-    { "matches": ["http://*/*", "https://*/*"], "js": ["content.js"], "run_at": "document_idle" }
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
   ]
 }
