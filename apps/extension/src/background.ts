@@ -1,4 +1,4 @@
-import { loadList, loadSettings, newId, saveList, saveSettings, siteRules, type Item, type ListName } from "./settings";
+import { DEFAULT_SETTINGS, loadList, loadSettings, newId, saveList, saveSettings, siteRules, type Item, type ListName } from "./settings";
 import { ACCESSORIES, SKINS } from "../../web/src/mascot/skins";
 
 const MIC_SETUP = "permission.html";
@@ -36,9 +36,21 @@ async function ensureInAllTabs() {
   }
 }
 
+// Tekkie used to come as the robot. Everyone still wearing it (or nothing saved) moves to the yeti once,
+// when the extension is installed, updated or reloaded; a robot picked again afterwards sticks.
+const BODY_MIGRATION = 1;
+async function migrateBody() {
+  const { form, bodyMigration } = (await chrome.storage.local.get({ form: "", bodyMigration: 0 })) as { form: string; bodyMigration: number };
+  if (bodyMigration >= BODY_MIGRATION) return;
+  const patch: Record<string, unknown> = { bodyMigration: BODY_MIGRATION };
+  if (!form || form === "robot") patch.form = DEFAULT_SETTINGS.form;
+  await chrome.storage.local.set(patch);
+}
+
 chrome.runtime.onInstalled.addListener(({ reason }) => {
   // First install: grant the microphone once up front, so the first chat on any site just works.
   if (reason === "install") void chrome.tabs.create({ url: chrome.runtime.getURL(MIC_SETUP) });
+  void migrateBody();
   void ensureInAllTabs(); // tabs that were already open get Tekkie without a refresh
   void ensureOffscreen();
 });

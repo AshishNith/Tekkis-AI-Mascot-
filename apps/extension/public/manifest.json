@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tekkie",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A 3D AI buddy that floats over every page and talks with you in real time.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxKVbZkIYgLI5dSbIHC8aXFaROuNWF9mekOQMV14K98M4cUntIC7TvHty9v4nr+9Oqa8r8716/B9TAnmquOiCj14u1Xv0K4VKjYfSWBkm0tIKnFPC5CCg5FGNbwvARtjSlQW2AuNcjaK0+5nx2WkszOEkxENsmP1jp9nRfaljya9v4hPZdmDee552Al0uc98BeCDbs+RTGGzGICVC2z/QZI0Ojsldb7mKhggd2GUpAw06D4uiz9jMh2yEOjXkzWe0tP3fhJ9Y3P2tT6FkUCm5hdH15YDgT92Fyj3YbiJc1SKDywLD38dXeYuVG+wxziTBDvhpf5xaPbZeTW4Ketx8MwIDAQAB",
   "icons": {
