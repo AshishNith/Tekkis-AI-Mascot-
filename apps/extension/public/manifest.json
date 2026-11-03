@@ -61,5 +61,16 @@
       ],
       "run_at": "document_idle"
     }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "models/yeti.glb"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
+    }
   ]
 }

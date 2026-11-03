@@ -5,13 +5,16 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { Accessory, Skin } from "../skins";
 
-export type FormKind = "robot" | "humanoid" | "creature" | "glb";
+export type FormKind = "robot" | "humanoid" | "creature" | "yeti" | "glb";
 
+/** The bodies Tekkie can wear, the default first. */
 export const FORMS: { id: FormKind; name: string; icon: string; blurb: string }[] = [
+  { id: "yeti", name: "Yeti", icon: "🥽", blurb: "A fluffy blue yeti in goggles and a headset" },
   { id: "robot", name: "Robot", icon: "🤖", blurb: "Glossy little bot with a screen face" },
   { id: "humanoid", name: "Buddy", icon: "🧑‍🚀", blurb: "A stylised assistant in a hoodie" },
   { id: "creature", name: "Critter", icon: "🐾", blurb: "A fluffy big-eyed pet" },
 ];
+export const DEFAULT_FORM: FormKind = FORMS[0].id;
 
 export const FLOOR_Y = -1.62;
 export const Z_AXIS = new THREE.Vector3(0, 0, 1);
@@ -41,6 +44,10 @@ export interface Pose {
   t: number;
   talk: number;
   stride: number;
+  /** Moving fast enough to run; only forms with a run clip show the difference. */
+  running: boolean;
+  /** How fast the body is moving over the ground, in world units per second, when known. */
+  speed?: number;
   phase: number;
   dance: number;
   hover: number;

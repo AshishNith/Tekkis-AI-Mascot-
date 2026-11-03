@@ -6,7 +6,7 @@ import { decay, levelOf, newCare, type CareState } from "../../web/src/widget/ca
 import { mountTekkie } from "../../web/src/widget/TekkieWidget";
 import { runAction } from "./control/dom-actions";
 import { RemoteVoiceSession } from "./remote-voice";
-import { base64ToBytes, loadSettings, MODEL_KEY, resolveAccessory, resolveSkin, siteRules, type Settings, type StoredModel } from "./settings";
+import { base64ToBytes, DEFAULT_SETTINGS, loadSettings, MODEL_KEY, resolveAccessory, resolveSkin, siteRules, type Settings, type StoredModel } from "./settings";
 
 // If this script is injected again (e.g. from the popup), the newest copy takes over and older ones go quiet.
 const token = Symbol("tekkie");
@@ -42,6 +42,7 @@ async function mount() {
     voice,
     skin: resolveSkin(settings, level),
     form: settings.form,
+    yetiModelUrl: chrome.runtime.getURL("models/yeti.glb"),
     accessory: resolveAccessory(settings, level),
     sounds: settings.sounds,
     fidgets: settings.fidgets,
@@ -69,15 +70,15 @@ async function mount() {
   if (settings.form === "glb") void wearCustomModel();
 }
 
-/** Loads the user's own .glb from storage onto Tekkie (falls back to the robot if there is none or it is broken). */
+/** Loads the user's own .glb from storage onto Tekkie (falls back to the default body if there is none or it is broken). */
 async function wearCustomModel() {
   const stored = (await chrome.storage.local.get(MODEL_KEY))[MODEL_KEY] as StoredModel | undefined;
   if (!tekkie) return;
-  if (!stored?.data) return tekkie.setForm("robot");
+  if (!stored?.data) return tekkie.setForm(DEFAULT_SETTINGS.form);
   try {
     await tekkie.loadModel(base64ToBytes(stored.data));
   } catch {
-    tekkie.setForm("robot");
+    tekkie.setForm(DEFAULT_SETTINGS.form);
   }
 }
 
@@ -104,6 +105,7 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; name?: string; text?
     // Bring Tekkie to the default corner of this page, even if it was hidden or dragged away.
     void (async () => {
       await mount();
+      tekkie?.show();
       tekkie?.resetPosition();
       setTimeout(() => tekkie?.wave(), 300);
       sendResponse({ ok: true });

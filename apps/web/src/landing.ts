@@ -15,7 +15,7 @@ const narrow = () => innerWidth < 1000;
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 const bubble = document.getElementById("bubble") as HTMLDivElement;
-const character = new TekkieCharacter(canvas, "robot");
+const character = new TekkieCharacter(canvas, "yeti");
 character.fidgets = !reduced;
 
 /** Where Tekkie stands (stage units), how big it is, where the camera orbits, and how visible it is. */
@@ -367,7 +367,7 @@ interface Mode {
 const MODES: Record<string, Mode> = {
   browse: {
     name: "Browse",
-    form: "robot",
+    form: "yeti",
     skin: "classic",
     accessory: null,
     emote: "wave",

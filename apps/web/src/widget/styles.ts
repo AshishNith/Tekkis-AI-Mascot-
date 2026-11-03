@@ -177,6 +177,23 @@ input {
 .controls, form.type { opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; transform: translateY(-6px); }
 .tekkie.hovering .controls, .tekkie.hovering form.type, form.type:focus-within { opacity: 1; pointer-events: auto; transform: none; }
 
+/* Hidden for a while: only a small tab at the bottom edge brings Tekkie back. */
+.tekkie.hidden { display: none; }
+.peek {
+  position: fixed;
+  z-index: 2147483000;
+  bottom: 16px;
+  right: 16px;
+  display: none;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+.peek.left { right: auto; left: 16px; }
+.peek.show { display: inline-flex; animation: tk-pop 0.18s ease-out; }
+.peek:hover { opacity: 1; }
+
 /* Sleeping: floating z's. */
 .zz { position: absolute; right: 52px; top: 18px; font: 700 18px/1 ui-rounded, system-ui, sans-serif; color: #b9b2ff; opacity: 0; pointer-events: none; }
 .zz span { display: inline-block; }

@@ -584,12 +584,12 @@ async function runProductivityTool(name: string, args: Record<string, unknown>):
     case "set_look": {
       const patch: Record<string, unknown> = {};
       const form = String(args.form ?? "");
-      if (["robot", "humanoid", "creature"].includes(form)) patch.form = form;
+      if (["robot", "humanoid", "creature", "yeti"].includes(form)) patch.form = form;
       const skin = String(args.skin ?? "");
       if (skin === "custom" || SKINS.some((s) => s.id === skin)) patch.skinId = skin;
       const accessory = String(args.accessory ?? "");
       if (ACCESSORIES.some((a) => a.id === accessory)) patch.accessory = accessory === "none" ? "" : accessory;
-      if (!Object.keys(patch).length) throw new Error("Pick a form (robot, humanoid, creature), a skin or an accessory.");
+      if (!Object.keys(patch).length) throw new Error("Pick a form (robot, humanoid, creature, yeti), a skin or an accessory.");
       await saveSettings(patch);
       return { changed: patch, note: "Done; the new look shows right away. Locked skins and hats need a higher bond level." };
     }

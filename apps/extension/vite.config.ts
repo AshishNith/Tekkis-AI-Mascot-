@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 
@@ -5,6 +6,15 @@ import { defineConfig } from "vite";
 // The content script is built separately (vite.content.config.ts) because it must be one classic script.
 export default defineConfig({
   base: "./",
+  plugins: [
+    {
+      // The yeti's model lives with the web app; the extension ships the same file.
+      name: "yeti-model",
+      generateBundle() {
+        this.emitFile({ type: "asset", fileName: "models/yeti.glb", source: readFileSync(resolve(__dirname, "../web/public/models/yeti.glb")) });
+      },
+    },
+  ],
   build: {
     outDir: "dist",
     emptyOutDir: true,

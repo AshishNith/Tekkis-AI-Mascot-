@@ -10,6 +10,8 @@
     <link rel="icon" href="/brand/tekkie-mark.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/brand/icon-180.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Tekkie's body: start the download with the page so the stage isn't empty for long. -->
+    <link rel="preload" href="/models/yeti.glb" as="fetch" crossorigin />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Tekkie" />
     <meta property="og:title" content="Tekkie: Your AI Buddy, Live on Every Page" />
@@ -89,7 +91,7 @@
           <h2 class="statement-h" data-reveal><strong>Tekkie</strong> is a voice-first, 3D AI buddy built for the open web. That means instant answers, real browser control, and a character that actually feels alive.</h2>
           <ul class="stats" data-reveal style="--d:120ms">
             <li><b>&lt; 5 min</b><span>from install to first conversation</span></li>
-            <li><b>3 bodies</b><span>plus your own rigged .glb</span></li>
+            <li><b>4 bodies</b><span>plus your own rigged .glb</span></li>
             <li><b>Every tab</b><span>it follows you and keeps the thread</span></li>
             <li><b>1 line</b><span>to embed it on your own site</span></li>
           </ul>
@@ -259,7 +261,7 @@
             <details open><summary>Does my voice or screen go anywhere I don't expect?</summary><p>Audio streams directly between your browser and the model. The API key never reaches the browser; you get a single-use token that only opens a Tekkie session. Screenshots are taken only when you ask, and you can switch that off.</p></details>
             <details><summary>Does it work on every website?</summary><p>Tekkie draws itself inside the page in its own shadow root and the voice engine runs in the extension's background, so strict site security rules can't block it and the conversation survives page changes. You can hide it, or stop it clicking, on specific sites.</p></details>
             <details><summary>Is it safe for kids?</summary><p>Tutor mode gives hints instead of answers, keeps to child-friendly topics, never buys or signs up for anything, and is locked behind a parent PIN. It defaults to the strictest settings.</p></details>
-            <details><summary>Can I use my own 3D character?</summary><p>Yes. Drop in a rigged .glb from Meshy, Ready Player Me, Mixamo or your own artist. Clips named idle, walk, wave, dance and talk, plus blend shapes for the mouth and blinking, are picked up automatically.</p></details>
+            <details><summary>Can I use my own 3D character?</summary><p>Yes. Drop in a rigged .glb from Meshy, Ready Player Me, Mixamo or your own artist. Clips named idle, walk, run, wave, dance and talk, plus blend shapes for the mouth and blinking, are picked up automatically.</p></details>
             <details><summary>What does it cost?</summary><p>Free to start. Premium and Premium+ plans with a skins store and referral codes arrive at launch; the B2B widget is priced per site.</p></details>
             <details><summary>What do I need?</summary><p>Chrome, a microphone, and ideally headphones so Tekkie doesn't hear itself. That's it.</p></details>
           </div>

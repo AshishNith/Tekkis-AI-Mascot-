@@ -254,11 +254,11 @@ export const COMPANION_TOOLS: FunctionDeclaration[] = [
   {
     name: "set_look",
     description:
-      "Change how Tekkie looks when the user asks: its body (robot, humanoid = a person/buddy, creature = a pet/critter/bunny/cat), its skin colour set, or a hat/outfit. E.g. 'turn into a cat' → form creature; 'be a person' → humanoid; 'wear the crown' → accessory crown; 'go gold' → skin gold.",
+      "Change how Tekkie looks when the user asks: its body (robot, humanoid = a person/buddy, creature = a pet/critter/bunny/cat, yeti = the fluffy blue yeti in goggles and a headset), its skin colour set, or a hat/outfit. E.g. 'turn into a cat' → form creature; 'be a yeti' → yeti; 'be a person' → humanoid; 'wear the crown' → accessory crown; 'go gold' → skin gold.",
     parametersJsonSchema: {
       type: "object",
       properties: {
-        form: { type: "string", enum: ["robot", "humanoid", "creature"] },
+        form: { type: "string", enum: ["robot", "humanoid", "creature", "yeti"] },
         skin: { type: "string", enum: ["classic", "street", "halloween", "festive", "galaxy", "gold", "custom"] },
         accessory: { type: "string", enum: ["none", "glasses", "cap", "bow", "scarf", "witch-hat", "santa-hat", "crown"] },
       },

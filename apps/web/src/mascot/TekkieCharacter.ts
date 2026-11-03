@@ -1,14 +1,30 @@
 import * as THREE from "three";
 import { DEFAULT_SKIN, type Accessory, type Skin } from "./skins";
 import type { VoiceState } from "../voice/LiveVoiceSession";
-import { FLOOR_Y, disposeMaterials, makeMaterials, smooth, type Face, type Form, type FormKind, type Materials, type Pose } from "./forms/common";
+import { DEFAULT_FORM, FLOOR_Y, disposeMaterials, makeMaterials, smooth, type Face, type Form, type FormKind, type Materials, type Pose } from "./forms/common";
 import { RobotForm } from "./forms/robot";
 import { HumanoidForm } from "./forms/humanoid";
 import { CreatureForm } from "./forms/creature";
+import { YetiForm } from "./forms/yeti";
 import { GlbForm } from "./forms/glb";
 
 export type { FormKind } from "./forms/common";
-export { FORMS } from "./forms/common";
+export { DEFAULT_FORM, FORMS } from "./forms/common";
+
+// Downloaded once however many times Tekkie switches back to the body.
+const modelBytes = new Map<string, Promise<ArrayBuffer>>();
+function fetchModel(url: string) {
+  let bytes = modelBytes.get(url);
+  if (!bytes) {
+    bytes = fetch(url).then((r) => {
+      if (!r.ok) throw new Error(`Couldn't fetch ${url}: ${r.status}`);
+      return r.arrayBuffer();
+    });
+    bytes.catch(() => modelBytes.delete(url)); // try again next time
+    modelBytes.set(url, bytes);
+  }
+  return bytes;
+}
 
 const STATE_GLOW: Partial<Record<VoiceState, number>> = {
   listening: 0x4dff88,
@@ -127,6 +143,8 @@ export class TekkieCharacter {
   private yawOffset = 0;
   private camTarget = new THREE.Vector3(0, 0.05, 0);
   private form!: Form;
+  /** Bumped on every body change, so a model that finishes loading late can tell it's no longer wanted. */
+  private formRequest = 0;
   private shadowFloor: THREE.Mesh;
   private blob: THREE.Mesh;
   private confetti: { mesh: THREE.Mesh; vel: THREE.Vector3; spin: THREE.Vector3 }[] = [];
@@ -150,6 +168,8 @@ export class TekkieCharacter {
   private lastRigRotY = 0;
   private talkLevel = 0;
   private walkDir = 0;
+  private running = false;
+  private groundSpeed?: number;
   private walk = 0;
   private walkPhase = 0;
   private faceYaw = 0;
@@ -173,7 +193,8 @@ export class TekkieCharacter {
   /** Called on each footstep while walking. */
   onStep?: () => void;
 
-  constructor(canvas: HTMLCanvasElement, form: FormKind = "robot") {
+  /** `yetiUrl`: where the yeti's model lives, for hosts that don't serve it from the site root. */
+  constructor(canvas: HTMLCanvasElement, form: FormKind = DEFAULT_FORM, private readonly yetiUrl = `${import.meta.env.BASE_URL}models/yeti.glb`) {
     this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "low-power" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x000000, 0);
@@ -242,18 +263,47 @@ export class TekkieCharacter {
 
   /** Switches the body. The skin, hat and mood carry over. */
   setForm(kind: FormKind | Form) {
-    const next: Form = typeof kind === "string" ? (kind === "humanoid" ? new HumanoidForm(this.mats) : kind === "creature" ? new CreatureForm(this.mats) : new RobotForm(this.mats)) : kind;
+    const next: Form = typeof kind === "string" ? (kind === "humanoid" ? new HumanoidForm(this.mats) : kind === "creature" ? new CreatureForm(this.mats) : kind === "yeti" ? new YetiForm(this.mats) : new RobotForm(this.mats)) : kind;
+    const request = ++this.formRequest;
+    this.wear(next);
+    this.poke();
+    if (kind === "yeti") {
+      // The yeti is its model: nothing shows until that has loaded. The hand-built yeti underneath only
+      // ever appears if the model can't be fetched at all.
+      this.setBodyVisible(false);
+      void this.wearYetiModel(request);
+    }
+  }
+
+  private async wearYetiModel(request: number) {
+    try {
+      const form = await GlbForm.load(await fetchModel(this.yetiUrl), "yeti");
+      if (request !== this.formRequest) return form.dispose(); // another body was picked in the meantime
+      this.wear(form);
+    } catch {
+      if (request !== this.formRequest) return;
+    }
+    this.setBodyVisible(true);
+  }
+
+  private setBodyVisible(on: boolean) {
+    this.form.root.visible = on;
+    this.blob.visible = on;
+    this.shadowFloor.visible = on;
+  }
+
+  private wear(next: Form) {
     if (this.form) {
       this.float.remove(this.form.root);
       this.form.dispose();
     }
     this.form = next;
     next.root.traverse((o) => {
-      if (o instanceof THREE.Mesh) o.castShadow = true;
+      if (o instanceof THREE.Mesh) o.castShadow = !o.userData.noShadow;
     });
     this.float.add(next.root);
     this.applySkin();
-    this.poke();
+    this.setBodyVisible(true);
   }
 
   /** Loads a .glb (rigged model) and wears it. Falls back to the robot if it can't be read. */
@@ -314,9 +364,31 @@ export class TekkieCharacter {
     this.pokeT = 0;
   }
 
-  /** Walk left (-1) or right (1), or stand still (0). Call every frame while moving. */
-  setWalk(direction: number) {
+  /**
+   * Walk left (-1) or right (1), or stand still (0). Call every frame while moving. `pxPerSecond` is how
+   * fast the body is being moved across the page, so a model's feet can keep pace with the ground.
+   */
+  setWalk(direction: number, running = false, pxPerSecond?: number) {
     this.walkDir = Math.sign(direction);
+    this.running = running;
+    this.groundSpeed = pxPerSecond === undefined ? undefined : pxPerSecond * this.unitsPerPixel();
+  }
+
+  /** World units covered by one CSS pixel at the floor: the camera's view height spread over the canvas. */
+  private unitsPerPixel() {
+    const height = this.renderer.getSize(new THREE.Vector2()).y || 1;
+    return (2 * this.camera.position.length() * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))) / height;
+  }
+
+  /**
+   * A comfortable strolling speed in CSS pixels per second: short-legged models would skate at the
+   * default, so they stroll at the pace their walk clip was made for (a little brisker). Built-in bodies
+   * keep the default.
+   */
+  strollSpeed(defaultPx: number) {
+    const made = this.form instanceof GlbForm ? this.form.gaitSpeed("walk") : undefined;
+    if (!made) return defaultPx;
+    return THREE.MathUtils.clamp((made * 1.5) / this.unitsPerPixel(), 40, defaultPx);
   }
 
   /** The pointer is over Tekkie: lean in, light up, look happy. */
@@ -586,7 +658,7 @@ export class TekkieCharacter {
     form.setGlow(glow, pulse);
 
     // Arms: gentle sway, a swing opposite the legs when walking, talking gestures, and emotes.
-    const rest = form.kind === "humanoid" ? 0.18 : form.kind === "creature" ? 0.6 : 0.35;
+    const rest = form.kind === "humanoid" ? 0.18 : form.kind === "creature" ? 0.6 : form.kind === "yeti" ? 0.5 : 0.35;
     form.arms.forEach((arm, i) => {
       const side = i === 0 ? -1 : 1;
       let rz = side * (rest + Math.sin(t * 1.7 + i) * 0.06 + talk * 0.25 + stride * 0.08 - tired * 0.08);
@@ -667,6 +739,8 @@ export class TekkieCharacter {
       t,
       talk,
       stride,
+      running: this.running,
+      speed: this.groundSpeed,
       phase,
       dance,
       hover,
@@ -706,6 +780,7 @@ export class TekkieCharacter {
   }
 
   dispose() {
+    this.formRequest++;
     this.form.dispose();
     this.renderer.dispose();
     this.scene.traverse((o) => {

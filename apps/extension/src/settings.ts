@@ -73,7 +73,7 @@ export const DEFAULT_SETTINGS: Settings = {
   corner: "right",
   customColors: { body: 0x7c5cff, visor: 0x16123a, glow: 0x7ff6ff, sneaker: 0xff4f81 },
   sites: {},
-  form: "robot",
+  form: "yeti",
   accessory: "",
   sounds: true,
   fidgets: true,

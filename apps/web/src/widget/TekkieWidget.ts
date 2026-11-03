@@ -1,4 +1,4 @@
-import { EMOTES, FORMS, TekkieCharacter, type Emote, type FormKind } from "../mascot/TekkieCharacter";
+import { DEFAULT_FORM, EMOTES, FORMS, TekkieCharacter, type Emote, type FormKind } from "../mascot/TekkieCharacter";
 import { DEFAULT_SKIN, SKINS, type Accessory, type Skin } from "../mascot/skins";
 import { Chirps } from "../mascot/sounds";
 import type { HistoryLine, TaskPlan, VoiceController, VoiceState } from "../voice/LiveVoiceSession";
@@ -15,8 +15,10 @@ export interface Store<T> {
 
 export interface TekkieOptions {
   skin?: Skin;
-  /** Which body to wear (robot by default). "glb" waits for loadModel(). */
+  /** Which body to wear (the yeti by default). "glb" waits for loadModel(). */
   form?: FormKind;
+  /** Where the yeti's model lives (this site's /models/yeti.glb by default). */
+  yetiModelUrl?: string;
   /** A hat or outfit on top of the skin. */
   accessory?: Accessory | null;
   /** Little chirps for feelings (on by default). */
@@ -52,6 +54,7 @@ const STATUS: Record<VoiceState, string> = {
 
 const MARGIN = 16;
 const SLEEP_AFTER_S = 90;
+const RUN_SPEED = 200; // px/s: strolling stays a walk, chasing the pointer and the catch game are a run
 const PERCH_SEAT_PX = 53; // from the bottom of the stage to Tekkie's seat when sitting
 
 function localStore<T>(key: string): Store<T> {
@@ -111,10 +114,12 @@ export function mountTekkie(options: TekkieOptions) {
         <div class="controls">
           <button class="talk" type="button" title="Talk (or hold Alt+T)"><span class="dot"></span><span class="label">Talk</span></button>
           <button class="icon keyboard" type="button" aria-label="Type a message" title="Type instead">⌨</button>
+          <button class="icon hide" type="button" aria-label="Hide Tekkie" title="Hide Tekkie for now">✕</button>
         </div>
         <form class="type"><input type="text" placeholder="Say something to Tekkie…" aria-label="Message" /><button type="submit">Send</button></form>
       </div>
-    </div>`;
+    </div>
+    <button class="peek" type="button" title="Bring Tekkie back" aria-label="Show Tekkie">👋 Tekkie</button>`;
   document.body.appendChild(host);
 
   const $ = <T extends Element>(sel: string) => root.querySelector<T>(sel)!;
@@ -134,7 +139,7 @@ export function mountTekkie(options: TekkieOptions) {
   const typeForm = $<HTMLFormElement>("form.type");
   const typeInput = $<HTMLInputElement>("form.type input");
 
-  const character = new TekkieCharacter($<HTMLCanvasElement>("canvas"), options.form && options.form !== "glb" ? options.form : "robot");
+  const character = new TekkieCharacter($<HTMLCanvasElement>("canvas"), options.form && options.form !== "glb" ? options.form : DEFAULT_FORM, options.yetiModelUrl);
   character.setSkin(options.skin ?? DEFAULT_SKIN);
   character.setAccessory(options.accessory ?? null);
   character.fidgets = options.fidgets !== false;
@@ -252,6 +257,7 @@ export function mountTekkie(options: TekkieOptions) {
   window.addEventListener("keydown", (e) => {
     if (!(e.altKey && e.code === "KeyT") || e.repeat) return;
     e.preventDefault();
+    if (hidden) show();
     wake();
     micHeld = true;
     voice.setMicMuted?.(false);
@@ -810,7 +816,7 @@ export function mountTekkie(options: TekkieOptions) {
       return true;
     }
     place(pos.x + Math.sign(dx) * Math.min(Math.abs(dx), speed * dt), pos.b);
-    character.setWalk(Math.sign(dx));
+    character.setWalk(Math.sign(dx), speed >= RUN_SPEED, speed);
     return false;
   }
 
@@ -916,7 +922,7 @@ export function mountTekkie(options: TekkieOptions) {
       }
       do wanderGoal = MARGIN + Math.random() * (maxX - MARGIN);
       while (Math.abs(wanderGoal - pos.x) < 140);
-    } else if (stepToward(wanderGoal, 105, dt)) {
+    } else if (stepToward(wanderGoal, character.strollSpeed(105), dt)) {
       wanderGoal = null;
       restFor = 5 + Math.random() * 9;
       const roll = Math.random();
@@ -942,6 +948,39 @@ export function mountTekkie(options: TekkieOptions) {
     raf = requestAnimationFrame(loop);
   };
   raf = requestAnimationFrame(loop);
+
+  // --- Hiding for a while --------------------------------------------------------------------
+  // Tucks Tekkie away until the little "Tekkie" tab (or Alt+T) brings it back. Not saved: a reload shows it again.
+  const peek = $<HTMLButtonElement>(".peek");
+  let hidden = false;
+  function hide() {
+    if (hidden) return;
+    hidden = true;
+    if (voice.active) voice.stop();
+    closePanel();
+    typeForm.classList.remove("open");
+    bubble.classList.remove("show");
+    setHover(false);
+    if (catchGame) catchGame.stop();
+    cancelAnimationFrame(raf);
+    box.classList.add("hidden");
+    // The tab sits at the bottom edge on whichever side Tekkie was.
+    peek.classList.toggle("left", pos.x + box.offsetWidth / 2 < window.innerWidth / 2);
+    peek.classList.add("show");
+  }
+  function show() {
+    if (!hidden) return;
+    hidden = false;
+    peek.classList.remove("show");
+    box.classList.remove("hidden");
+    place(pos.x, pos.b);
+    wake();
+    last = performance.now();
+    raf = requestAnimationFrame(loop);
+    character.wave();
+  }
+  $<HTMLButtonElement>(".hide").addEventListener("click", hide);
+  peek.addEventListener("click", show);
 
   setTimeout(async () => {
     if (options.shouldGreet && !(await options.shouldGreet())) return;
@@ -978,6 +1017,9 @@ export function mountTekkie(options: TekkieOptions) {
       positionStore.clear();
       place(cornerX(), 0);
     },
+    /** Tucks Tekkie away, leaving a small tab to bring it back. */
+    hide,
+    show,
     start: () => voice.start(),
     stop: () => voice.stop(),
     destroy() {

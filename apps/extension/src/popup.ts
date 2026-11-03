@@ -2,7 +2,7 @@ import { FORMS, TekkieCharacter } from "../../web/src/mascot/TekkieCharacter";
 import { ACCESSORIES, SKINS, type Accessory } from "../../web/src/mascot/skins";
 import { decay, levelOf, newCare, type CareState } from "../../web/src/widget/care";
 import { RemoteVoiceSession } from "./remote-voice";
-import { base64ToBytes, bytesToBase64, loadList, loadSettings, MODEL_KEY, resolveAccessory, resolveSkin, saveList, saveSettings, sha256, type ListName, type StoredModel } from "./settings";
+import { base64ToBytes, bytesToBase64, DEFAULT_SETTINGS, loadList, loadSettings, MODEL_KEY, resolveAccessory, resolveSkin, saveList, saveSettings, sha256, type ListName, type StoredModel } from "./settings";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const hex = (n: number) => `#${n.toString(16).padStart(6, "0")}`;
@@ -14,7 +14,7 @@ const level = levelOf(care.xp);
 
 // --- Tekkie says hi from the popup too, and follows the pointer. ------------------------------
 const canvas = $<HTMLCanvasElement>("mascot");
-const mascot = new TekkieCharacter(canvas, settings.form === "glb" ? "robot" : settings.form);
+const mascot = new TekkieCharacter(canvas, settings.form === "glb" ? DEFAULT_SETTINGS.form : settings.form, chrome.runtime.getURL("models/yeti.glb"));
 mascot.setSkin(resolveSkin(settings, level));
 mascot.setAccessory(resolveAccessory(settings, level));
 mascot.setMood(care);
@@ -183,9 +183,9 @@ modelFile.addEventListener("change", async () => {
 $("model-clear").addEventListener("click", async () => {
   await chrome.storage.local.remove(MODEL_KEY);
   if (settings.form === "glb") {
-    await saveSettings({ form: "robot" });
+    await saveSettings({ form: DEFAULT_SETTINGS.form });
     settings = await loadSettings();
-    mascot.setForm("robot");
+    mascot.setForm(DEFAULT_SETTINGS.form);
     renderForms();
   }
   modelFile.value = "";
